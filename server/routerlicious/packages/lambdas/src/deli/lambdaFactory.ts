@@ -33,6 +33,7 @@ import {
     convertTreeToSnapshotTree,
  } from "@fluidframework/server-services-client";
 import { Provider } from "nconf";
+import winston from "winston";
 import { NoOpLambda } from "../utils";
 import { DeliLambda } from "./lambda";
 import { createDeliCheckpointManagerFromCollection } from "./checkpointManager";
@@ -327,7 +328,8 @@ export class DeliLambdaFactory extends EventEmitter implements IPartitionLambdaF
 
             const id = gitManager.createSummary(snapshotPayload).then((response) => response.id);
 
-            winston.info(`[UPLOAD SUMMARY] Deli createSummaryWithLatestTerm. \nPayload: ${snapshotPayload} \nResponse Id: ${id}`);
+            winston.info(`[UPLOAD SUMMARY] Deli createSummaryWithLatestTerm.
+             \nPayload: ${snapshotPayload} \nResponse Id: ${id}`);
 
             return id;
     }

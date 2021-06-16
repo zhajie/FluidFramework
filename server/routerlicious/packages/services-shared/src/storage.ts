@@ -286,7 +286,8 @@ export class DocumentStorage implements IDocumentStorage {
 
             const id = await gitManager.createSummary(snapshotPayload).then((response) => response.id);
 
-            winston.info(`[UPLOAD SUMMARY] Create document flow. \nPayload: ${JSON.stringify(snapshotPayload)} \nResponse Id: ${id}`);
+            winston.info(`[UPLOAD SUMMARY] Create document flow. \nPayload: 
+            ${JSON.stringify(snapshotPayload)} \nResponse Id: ${id}`);
 
             return id;
     }

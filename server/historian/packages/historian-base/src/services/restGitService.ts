@@ -43,6 +43,11 @@ function endsWith(value: string, endings: string[]): boolean {
     return false;
 }
 
+function getStorageRoutingIdHeaderValue(tenantId: string, documentId: string)
+{
+    return `${tenantId}:${documentId}`;
+}
+
 export class RestGitService {
     private readonly restWrapper: RestWrapper;
 
@@ -55,14 +60,14 @@ export class RestGitService {
         private readonly asyncLocalStorage?: AsyncLocalStorage<string>) {
         const defaultHeaders: OutgoingHttpHeaders = {
             "User-Agent": userAgent,
-            "Storage-Routing-Id": this.getStorageRoutingHeaderValue(),
+            "Storage-Routing-Id": getStorageRoutingIdHeaderValue(this.tenantId, this.documentId),
         };
         if (storage.credentials) {
             const token = Buffer.from(`${storage.credentials.user}:${storage.credentials.password}`);
             defaultHeaders.Authorization = `Basic ${token.toString("base64")}`;
         }
 
-        winston.info(`base url: ${storage.url}, Storage-Routing-Id: ${this.getStorageRoutingHeaderValue()}`);
+        winston.info(`base url: ${storage.url}, Storage-Routing-Id: ${getStorageRoutingIdHeaderValue(this.tenantId, this.documentId)}`);
 
         this.restWrapper = new BasicRestWrapper(
             storage.url,
@@ -334,11 +339,6 @@ export class RestGitService {
         return this.restWrapper.patch<T>(url, requestBody, undefined, {
             "Content-Type": "application/json",
         }).catch(getRequestErrorTranslator(url, "PATCH"));
-    }
-
-    private getStorageRoutingHeaderValue()
-    {
-        return `${this.tenantId}:${this.documentId}`;
     }
 
     /**

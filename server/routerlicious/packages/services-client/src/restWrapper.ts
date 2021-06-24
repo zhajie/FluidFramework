@@ -122,7 +122,8 @@ export class BasicRestWrapper extends RestWrapper {
             options.headers,
             (this.getCorrelationId && this.getCorrelationId()) || uuid());
 
-        debug(`[BasicRestWrapper.request] defaultHeaders: ${JSON.stringify(this.defaultHeaders)}, options.headers: ${JSON.stringify(options.headers)}`);
+        debug(`[BasicRestWrapper.request] defaultHeaders: ${JSON.stringify(this.defaultHeaders)},
+         options.headers: ${JSON.stringify(options.headers)}`);
 
         return new Promise<T>((resolve, reject) => {
             this.axios.request<T>(options)

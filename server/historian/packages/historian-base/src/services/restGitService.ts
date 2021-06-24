@@ -43,7 +43,7 @@ function endsWith(value: string, endings: string[]): boolean {
     return false;
 }
 
-let getStorageRoutingIdHeaderValue = (tenantId: string, documentId: string) => `${tenantId}:${documentId}`;
+const getStorageRoutingIdHeaderValue = (tenantId: string, documentId: string) => `${tenantId}:${documentId}`;
 
 export class RestGitService {
     private readonly restWrapper: RestWrapper;

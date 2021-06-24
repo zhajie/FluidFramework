@@ -43,10 +43,7 @@ function endsWith(value: string, endings: string[]): boolean {
     return false;
 }
 
-function getStorageRoutingIdHeaderValue(tenantId: string, documentId: string)
-{
-    return `${tenantId}:${documentId}`;
-}
+let getStorageRoutingIdHeaderValue = (tenantId: string, documentId: string) => `${tenantId}:${documentId}`;
 
 export class RestGitService {
     private readonly restWrapper: RestWrapper;
@@ -67,7 +64,8 @@ export class RestGitService {
             defaultHeaders.Authorization = `Basic ${token.toString("base64")}`;
         }
 
-        winston.info(`base url: ${storage.url}, Storage-Routing-Id: ${getStorageRoutingIdHeaderValue(this.tenantId, this.documentId)}`);
+        winston.info(`base url: ${storage.url}, Storage-Routing-Id: 
+        ${getStorageRoutingIdHeaderValue(this.tenantId, this.documentId)}`);
 
         this.restWrapper = new BasicRestWrapper(
             storage.url,

@@ -64,8 +64,9 @@ export class RestGitService {
             defaultHeaders.Authorization = `Basic ${token.toString("base64")}`;
         }
 
-        winston.info(`base url: ${storage.url}, Storage-Routing-Id: 
-        ${getStorageRoutingIdHeaderValue(this.tenantId, this.documentId)}`);
+        winston.info(`[RestGitService] base url: ${storage.url}, 
+                      Storage-Routing-Id: ${getStorageRoutingIdHeaderValue(this.tenantId, this.documentId)}
+                      defaultHeaders: ${JSON.stringify(defaultHeaders)}`);
 
         this.restWrapper = new BasicRestWrapper(
             storage.url,

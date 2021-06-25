@@ -72,6 +72,7 @@ export class RestGitService {
             storage.url,
             undefined,
             undefined,
+            undefined,
             defaultHeaders,
             undefined,
             undefined,

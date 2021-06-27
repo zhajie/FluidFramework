@@ -6,10 +6,10 @@
 import { AsyncLocalStorage } from "async_hooks";
 import { IThrottler } from "@fluidframework/server-services-core";
 import { IThrottleMiddlewareOptions, throttle, getParam } from "@fluidframework/server-services-utils";
-import { ISummaryPayload, ISnapshotResponse} from "../contract";
 import { Router } from "express";
 import * as nconf from "nconf";
 import winston from "winston";
+import { ISummaryPayload, ISnapshotResponse} from "../contract";
 import { ICache, ITenantService } from "../services";
 import * as utils from "./utils";
 

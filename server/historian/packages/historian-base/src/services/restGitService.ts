@@ -13,13 +13,12 @@ import {
     IPatchRefParamsExternal,
     BasicRestWrapper,
     RestWrapper,
-    IWholeSummaryPayload,
-    IWriteSummaryResponse,
 } from "@fluidframework/server-services-client";
 import { ITenantStorage } from "@fluidframework/server-services-core";
 import * as uuid from "uuid";
 import * as winston from "winston";
 import { getCorrelationId } from "@fluidframework/server-services-utils";
+import { ISummaryPayload, ISnapshotResponse} from "../contract";
 import { getRequestErrorTranslator } from "../utils";
 import { ICache } from "./definitions";
 
@@ -169,8 +168,8 @@ export class RestGitService {
         return this.post(`/repos/${this.getRepoPath()}/git/refs`, params);
     }
 
-    public async createSnapshot(snapshotParams: IWholeSummaryPayload): Promise<IWriteSummaryResponse> {
-        const snapshotResponse = await this.post<IWriteSummaryResponse>(
+    public async createSnapshot(snapshotParams: ISummaryPayload): Promise<ISnapshotResponse> {
+        const snapshotResponse = await this.post<ISnapshotResponse>(
             `/repos/fluid/git/summaries`,
              snapshotParams);
 

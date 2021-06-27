@@ -6,7 +6,7 @@
 import { AsyncLocalStorage } from "async_hooks";
 import { IThrottler } from "@fluidframework/server-services-core";
 import { IThrottleMiddlewareOptions, throttle } from "@fluidframework/server-services-utils";
-import { IWholeSummaryPayload, IWriteSummaryResponse } from "@fluidframework/server-services-client";
+import { ISummaryPayload, ISnapshotResponse} from "../contract";
 import { Router } from "express";
 import * as nconf from "nconf";
 import winston from "winston";
@@ -29,7 +29,7 @@ export function create(
     async function createSnapshot(
         tenantId: string,
         authorization: string,
-        params: IWholeSummaryPayload): Promise<IWriteSummaryResponse> {
+        params: ISummaryPayload): Promise<ISnapshotResponse> {
         const service = await utils.createGitService(tenantId, authorization, tenantService, cache, asyncLocalStorage);
         return service.createSnapshot(params);
     }

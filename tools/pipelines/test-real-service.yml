@@ -78,6 +78,11 @@ stages:
         testWorkspace: ${{ variables.testWorkspace }}
         timeoutInMinutes: 360
         target: frs
+        testVersions:
+          - --compatVersion=0
+          - --compatVersion=-1
+          - --compatVersion=-2
+          - --compatVersion=LTS
         env:
           fluid__test__driver__frs: $(automation-fluid-test-driver-frs)
           FLUID_TEST_LOGGER_PKG_PATH: ${{ variables.testWorkspace }}/node_modules/@ff-internal/aria-logger # Contains getTestLogger impl to inject
@@ -94,6 +99,11 @@ stages:
         testWorkspace: ${{ variables.testWorkspace }}
         timeoutInMinutes: 360
         target: odsp
+        testVersions:
+          - --compatVersion=0
+          - --compatVersion=-1
+          - --compatVersion=-2
+          - --compatVersion=LTS
         env:
           login__microsoft__clientId: $(login-microsoft-clientId)
           login__microsoft__secret: $(login-microsoft-secret)

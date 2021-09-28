@@ -6,7 +6,9 @@
 import { ScriptoriumLambdaFactory } from "@fluidframework/server-lambdas";
 import * as services from "@fluidframework/server-services";
 import { IPartitionLambdaFactory, MongoManager } from "@fluidframework/server-services-core";
+import { scheduleJob } from "@fluidframework/server-services-utils";
 import { Provider } from "nconf";
+import * as winston from "winston";
 
 export async function create(config: Provider): Promise<IPartitionLambdaFactory> {
     const mongoUrl = config.get("mongo:endpoint") as string;
@@ -50,6 +52,9 @@ export async function create(config: Provider): Promise<IPartitionLambdaFactory>
             );
         }
     }
+
+    await scheduleJob(async () => {winston.info("scheduled");}, "haha", "haha", winston);
+    await scheduleJob(async () => {winston.info("scheduled2");}, "haha", "haha", winston);
 
     return new ScriptoriumLambdaFactory(mongoManager, opCollection);
 }

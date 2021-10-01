@@ -55,7 +55,8 @@ export function create(
      * Retrieves list of all tenants
      */
     router.get("/tenants", (request, response) => {
-        const tenantP = manager.getAllTenants();
+        const includeDisabled = request.get("Include-Deleted")?.toLowerCase() === "true";
+        const tenantP = manager.getAllTenants(includeDisabled);
         handleResponse(tenantP, response);
     });
 
@@ -123,7 +124,8 @@ export function create(
      */
     router.delete("/tenants/:id", (request, response) => {
         const tenantId = getParam(request.params, "id");
-        const tenantP = manager.disableTenant(tenantId);
+        const deletionTime = request.body.deletionTime;
+        const tenantP = manager.disableTenant(tenantId, deletionTime);
         handleResponse(tenantP, response);
     });
 

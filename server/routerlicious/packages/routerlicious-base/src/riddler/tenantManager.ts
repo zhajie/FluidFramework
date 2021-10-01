@@ -39,6 +39,10 @@ export interface ITenantDocument {
 
     // Whether the tenant is disabled
     disabled: boolean;
+
+    // Timestamp of when this tenant will be hard deleted.
+    // Only applicable if the tenant is disabled.
+    deletionTime?: string;
 }
 
 export class TenantManager {
@@ -98,14 +102,15 @@ export class TenantManager {
     /**
      * Retrieves the details for all tenants
      */
-    public async getAllTenants(): Promise<ITenantConfig[]> {
-        const tenants = await this.getAllTenantDocuments();
+    public async getAllTenants(includeDisabled = false): Promise<ITenantConfig[]> {
+        const tenants = await this.getAllTenantDocuments(includeDisabled);
 
         return tenants.map((tenant) => ({
             id: tenant._id,
             orderer: tenant.orderer,
             storage: tenant.storage,
             customData: tenant.customData,
+            deletionTime: tenant.deletionTime,
         }));
     }
 
@@ -268,7 +273,7 @@ export class TenantManager {
     /**
      * Retrieves all the raw database tenant documents
      */
-    private async getAllTenantDocuments(): Promise<ITenantDocument[]> {
+    private async getAllTenantDocuments(includeDisabled = false): Promise<ITenantDocument[]> {
         const db = await this.mongoManager.getDatabase();
         const collection = db.collection<ITenantDocument>(this.collectionName);
 
@@ -278,17 +283,17 @@ export class TenantManager {
             this.attachDefaultsToTenantDocument(found);
         });
 
-        return allFound.filter((found) => !found.disabled);
+        return includeDisabled ? allFound : allFound.filter((found) => !found.disabled);
     }
 
     /**
-     * Flags the given tenant as disabled
+     * Flags the given tenant as disabled and set deletionTime if present.
      */
-    public async disableTenant(tenantId: string): Promise<void> {
+    public async disableTenant(tenantId: string, deletionTime?: string): Promise<void> {
         const db = await this.mongoManager.getDatabase();
         const collection = db.collection<ITenantDocument>(this.collectionName);
 
-        await collection.update({ _id: tenantId }, { disabled: true }, null);
+        await collection.update({ _id: tenantId }, {disabled: true, deletionTime}, null);
     }
 
     private encryptAccessInfo(accessInfo: any): string {

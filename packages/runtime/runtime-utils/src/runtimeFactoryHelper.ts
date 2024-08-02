@@ -8,9 +8,10 @@ import {
 	IRuntime,
 	IRuntimeFactory,
 } from "@fluidframework/container-definitions/internal";
-import { IContainerRuntime } from "@fluidframework/container-runtime-definitions";
+import { IContainerRuntime } from "@fluidframework/container-runtime-definitions/internal";
 
 /**
+ * @legacy
  * @alpha
  */
 export abstract class RuntimeFactoryHelper<T = IContainerRuntime> implements IRuntimeFactory {

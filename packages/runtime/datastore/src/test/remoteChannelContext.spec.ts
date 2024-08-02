@@ -5,16 +5,16 @@
 
 import { strict as assert } from "assert";
 
-import { ISnapshotTree } from "@fluidframework/protocol-definitions";
+import { ISnapshotTree } from "@fluidframework/driver-definitions/internal";
 import {
 	CreateChildSummarizerNodeFn,
 	IContainerRuntimeBase,
 	IFluidDataStoreContext,
-} from "@fluidframework/runtime-definitions";
+} from "@fluidframework/runtime-definitions/internal";
 import {
 	MockFluidDataStoreContext,
 	validateAssertionError,
-} from "@fluidframework/test-runtime-utils";
+} from "@fluidframework/test-runtime-utils/internal";
 
 import { FluidDataStoreRuntime, ISharedObjectRegistry } from "../dataStoreRuntime.js";
 import { RemoteChannelContext } from "../remoteChannelContext.js";
@@ -49,7 +49,6 @@ describe("RemoteChannelContext Tests", () => {
 				dataStoreContext.storage,
 				(c, lom) => {},
 				(s: string) => {},
-				(s, o) => {},
 				invalidId,
 				undefined as unknown as ISnapshotTree,
 				sharedObjectRegistry,

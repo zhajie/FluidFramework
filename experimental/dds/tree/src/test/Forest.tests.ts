@@ -5,7 +5,7 @@
 
 import { strict as assert } from 'assert';
 
-import { validateAssertionError } from '@fluidframework/test-runtime-utils';
+import { validateAssertionError } from '@fluidframework/test-runtime-utils/internal';
 import { expect } from 'chai';
 
 import { Forest, ForestNode, compareForestNodes } from '../Forest.js';
@@ -268,12 +268,7 @@ describe('Forest', () => {
 		const parent = forest.get(parentId);
 		const expectedTrait = [...(parent.traits.get(label) ?? [])];
 		const spliced = expectedTrait.splice(startIndex, endIndex - startIndex);
-		const { forest: forestWithDetach, detached } = forest.detachRangeOfChildren(
-			parentId,
-			label,
-			startIndex,
-			endIndex
-		);
+		const { forest: forestWithDetach, detached } = forest.detachRangeOfChildren(parentId, label, startIndex, endIndex);
 
 		const newParent = forestWithDetach.get(parentId);
 		const trait = newParent.traits.get(label);

@@ -9,19 +9,20 @@ import {
 	IDeltaManagerEvents,
 	IDeltaQueue,
 	ReadOnlyInfo,
-} from "@fluidframework/container-definitions";
-import { assert } from "@fluidframework/core-utils";
+} from "@fluidframework/container-definitions/internal";
+import { assert } from "@fluidframework/core-utils/internal";
+import { IClientDetails } from "@fluidframework/driver-definitions";
 import {
 	IClientConfiguration,
-	IClientDetails,
 	IDocumentMessage,
+	MessageType,
 	ISequencedDocumentMessage,
 	ISignalMessage,
-	MessageType,
-} from "@fluidframework/protocol-definitions";
+} from "@fluidframework/driver-definitions/internal";
 
 /**
  * Mock implementation of IDeltaQueue for testing that does nothing
+ * @legacy
  * @alpha
  */
 export class MockDeltaQueue<T> extends EventEmitter implements IDeltaQueue<T> {
@@ -97,6 +98,7 @@ export class MockDeltaQueue<T> extends EventEmitter implements IDeltaQueue<T> {
 
 /**
  * Mock implementation of IDeltaManager for testing that creates mock DeltaQueues for testing
+ * @legacy
  * @alpha
  */
 export class MockDeltaManager
@@ -157,7 +159,12 @@ export class MockDeltaManager
 
 	public flush() {}
 
-	public submit(type: MessageType, contents: any, batch = false, localOpMetadata: any): number {
+	public submit(
+		type: MessageType,
+		contents: any,
+		batch = false,
+		localOpMetadata: any,
+	): number {
 		return 0;
 	}
 
@@ -165,8 +172,7 @@ export class MockDeltaManager
 		this.removeAllListeners();
 	}
 
-	// ! TODO AB#7512: attribution fuzz tests rely on csn starting at 0 (even though this is not how the normal flow works)
-	public clientSequenceNumber = -1;
+	public clientSequenceNumber = 0;
 
 	public process(message: ISequencedDocumentMessage): void {
 		assert(message.sequenceNumber !== undefined, "message missing sequenceNumber");
@@ -190,9 +196,8 @@ export class MockDeltaManager
 			messages.forEach((message: IDocumentMessage) => {
 				// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 				this._inbound.push({
-					// ! TODO AB#7512: attribution fuzz tests rely on this ordering
-					clientId: this.getClientId?.() ?? null,
 					...message,
+					clientId: this.getClientId?.() ?? null,
 					// ! sequenceNumber and minimumSequenceNumber should be added by MockContainerRuntimeFactory
 				} as ISequencedDocumentMessage);
 			});

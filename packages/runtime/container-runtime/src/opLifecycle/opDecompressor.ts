@@ -5,9 +5,9 @@
 
 import { IsoBuffer, Uint8ArrayToString } from "@fluid-internal/client-utils";
 import { ITelemetryBaseLogger } from "@fluidframework/core-interfaces";
-import { assert } from "@fluidframework/core-utils";
-import { ISequencedDocumentMessage } from "@fluidframework/protocol-definitions";
-import { createChildLogger } from "@fluidframework/telemetry-utils";
+import { assert } from "@fluidframework/core-utils/internal";
+import { ISequencedDocumentMessage } from "@fluidframework/driver-definitions/internal";
+import { createChildLogger } from "@fluidframework/telemetry-utils/internal";
 import { decompress } from "lz4js";
 
 import { CompressionAlgorithms } from "../containerRuntime.js";
@@ -65,8 +65,7 @@ export class OpDecompressor {
 				IsoBuffer.from(
 					(message.contents as IPackedContentsContents).packedContents,
 					"base64",
-				).toString("base64") ===
-					(message.contents as IPackedContentsContents).packedContents
+				).toString("base64") === (message.contents as IPackedContentsContents).packedContents
 			) {
 				this.logger.sendTelemetryEvent({
 					eventName: "LegacyCompression",
@@ -98,7 +97,10 @@ export class OpDecompressor {
 			message.compression === undefined || message.compression === CompressionAlgorithms.lz4,
 			0x511 /* Only lz4 compression is supported */,
 		);
-		assert(this.isCompressedMessage(message), "provided message should be compressed");
+		assert(
+			this.isCompressedMessage(message),
+			0x940 /* provided message should be compressed */,
+		);
 
 		assert(this.activeBatch === false, 0x4b8 /* shouldn't have multiple active batches */);
 		this.activeBatch = true;
@@ -107,7 +109,7 @@ export class OpDecompressor {
 		if (batchMetadata === undefined) {
 			this.isSingleMessageBatch = true;
 		} else {
-			assert(batchMetadata === true, "invalid batch metadata");
+			assert(batchMetadata === true, 0x941 /* invalid batch metadata */);
 		}
 
 		const contents = IsoBuffer.from(
@@ -125,18 +127,18 @@ export class OpDecompressor {
 	 * @returns the unrolled `ISequencedDocumentMessage`
 	 */
 	public unroll(message: ISequencedDocumentMessage): ISequencedDocumentMessage {
-		assert(this.currentlyUnrolling, "not currently unrolling");
-		assert(this.rootMessageContents !== undefined, "missing rootMessageContents");
-		assert(this.rootMessageContents.length > this.processedCount, "no more content to unroll");
+		assert(this.currentlyUnrolling, 0x942 /* not currently unrolling */);
+		assert(this.rootMessageContents !== undefined, 0x943 /* missing rootMessageContents */);
+		assert(
+			this.rootMessageContents.length > this.processedCount,
+			0x944 /* no more content to unroll */,
+		);
 
 		const batchMetadata = (message.metadata as IBatchMetadata | undefined)?.batch;
 
 		if (batchMetadata === false || this.isSingleMessageBatch) {
 			// End of compressed batch
-			const returnMessage = newMessage(
-				message,
-				this.rootMessageContents[this.processedCount],
-			);
+			const returnMessage = newMessage(message, this.rootMessageContents[this.processedCount]);
 
 			this.activeBatch = false;
 			this.isSingleMessageBatch = false;
@@ -149,7 +151,7 @@ export class OpDecompressor {
 			return newMessage(message, this.rootMessageContents[this.processedCount++]);
 		}
 
-		assert(batchMetadata === undefined, "invalid batch metadata");
+		assert(batchMetadata === undefined, 0x945 /* invalid batch metadata */);
 		assert(message.contents === undefined, 0x512 /* Expecting empty message */);
 
 		// Continuation of compressed batch

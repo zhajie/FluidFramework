@@ -7,34 +7,34 @@ import { strict as assert } from "assert";
 import { join as pathJoin } from "path";
 
 import { makeRandom } from "@fluid-private/stochastic-test-utils";
-import { FuzzSerializedIdCompressor } from "@fluid-private/test-dds-utils";
+import type { FuzzSerializedIdCompressor } from "@fluid-private/test-dds-utils";
+import type { SessionId } from "@fluidframework/id-compressor";
 import {
-	SessionId,
 	createIdCompressor,
 	deserializeIdCompressor,
 } from "@fluidframework/id-compressor/internal";
 
 import {
-	Anchor,
-	Revertible,
+	type Anchor,
+	type Revertible,
 	TreeNavigationResult,
-	UpPath,
-	Value,
+	type UpPath,
+	type Value,
 	clonePath,
 	forEachNodeInSubtree,
 	moveToDetachedField,
 } from "../../../core/index.js";
-import { SchemaBuilder, leaf } from "../../../domains/index.js";
+import { SchemaBuilder, leaf, typedJsonCursor } from "../../../domains/index.js";
 import {
 	Any,
 	FieldKinds,
 	FlexFieldSchema,
-	FlexTreeObjectNodeTyped,
-	LeafNodeSchema,
-	SchemaLibrary,
+	type FlexTreeObjectNodeTyped,
+	type LeafNodeSchema,
+	type SchemaLibrary,
 	intoStoredSchema,
 } from "../../../feature-libraries/index.js";
-import { ITreeCheckout, SharedTree } from "../../../shared-tree/index.js";
+import type { ITreeCheckout, SharedTree, TreeContent } from "../../../shared-tree/index.js";
 import { testSrcPath } from "../../testSrcPath.cjs";
 import { expectEqualPaths } from "../../utils.js";
 
@@ -73,18 +73,21 @@ export function createFuzzNode(
 			() => node,
 			leaf.number,
 			leaf.string,
+			leaf.handle,
 			...nodeTypes,
 		]),
 		optionalChild: FlexFieldSchema.createUnsafe(FieldKinds.optional, [
 			() => node,
 			leaf.number,
 			leaf.string,
+			leaf.handle,
 			...nodeTypes,
 		]),
 		sequenceChildren: FlexFieldSchema.createUnsafe(FieldKinds.sequence, [
 			() => node,
 			leaf.number,
 			leaf.string,
+			leaf.handle,
 			...nodeTypes,
 		]),
 	});
@@ -117,10 +120,14 @@ export function validateAnchors(
 	view: ITreeCheckout,
 	anchors: ReadonlyMap<Anchor, [UpPath, Value]>,
 	checkPaths: boolean,
+	tolerateLostAnchors = true,
 ) {
 	const cursor = view.forest.allocateCursor();
 	for (const [anchor, [path, value]] of anchors) {
 		const result = view.forest.tryMoveCursorToNode(anchor, cursor);
+		if (tolerateLostAnchors && result === TreeNavigationResult.NotFound) {
+			continue;
+		}
 		assert.equal(result, TreeNavigationResult.Ok);
 		assert.equal(cursor.value, value);
 		if (checkPaths) {
@@ -156,6 +163,7 @@ export function isRevertibleSharedTreeView(s: ITreeCheckout): s is RevertibleSha
 }
 
 export const failureDirectory = pathJoin(testSrcPath, "shared-tree/fuzz/failures");
+export const successesDirectory = pathJoin(testSrcPath, "shared-tree/fuzz/successes");
 
 export const createOrDeserializeCompressor = (
 	sessionId: SessionId,
@@ -164,16 +172,42 @@ export const createOrDeserializeCompressor = (
 	return summary === undefined
 		? createIdCompressor(sessionId)
 		: summary.withSession
-		? deserializeIdCompressor(summary.serializedCompressor)
-		: deserializeIdCompressor(summary.serializedCompressor, sessionId);
+			? deserializeIdCompressor(summary.serializedCompressor)
+			: deserializeIdCompressor(summary.serializedCompressor, sessionId);
 };
 
 export const deterministicIdCompressorFactory: (
 	seed: number,
-) => (summary?: FuzzSerializedIdCompressor) => ReturnType<typeof createIdCompressor> = (seed) => {
+) => (summary?: FuzzSerializedIdCompressor) => ReturnType<typeof createIdCompressor> = (
+	seed,
+) => {
 	const random = makeRandom(seed);
 	return (summary?: FuzzSerializedIdCompressor) => {
 		const sessionId = random.uuid4() as SessionId;
 		return createOrDeserializeCompressor(sessionId, summary);
 	};
 };
+
+export const populatedInitialState: TreeContent<
+	typeof fuzzSchema.rootFieldSchema
+>["initialTree"] = typedJsonCursor({
+	[typedJsonCursor.type]: fuzzNode,
+	sequenceChildren: [
+		{
+			[typedJsonCursor.type]: fuzzNode,
+			sequenceChildren: ["AA", "AB", "AC"],
+			requiredChild: "A",
+		},
+		{
+			[typedJsonCursor.type]: fuzzNode,
+			sequenceChildren: ["BA", "BB", "BC"],
+			requiredChild: "B",
+		},
+		{
+			[typedJsonCursor.type]: fuzzNode,
+			sequenceChildren: ["CA", "CB", "CC"],
+			requiredChild: "C",
+		},
+	],
+	requiredChild: "R",
+});

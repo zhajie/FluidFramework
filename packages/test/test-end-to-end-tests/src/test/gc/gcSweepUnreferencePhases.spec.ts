@@ -11,10 +11,11 @@ import {
 	describeCompat,
 } from "@fluid-private/test-version-utils";
 import { IContainer } from "@fluidframework/container-definitions/internal";
-import { IGCRuntimeOptions } from "@fluidframework/container-runtime";
-import { delay } from "@fluidframework/core-utils";
-import { ISummaryTree, SummaryType } from "@fluidframework/protocol-definitions";
-import { gcTreeKey } from "@fluidframework/runtime-definitions";
+import { IGCRuntimeOptions } from "@fluidframework/container-runtime/internal";
+import { delay } from "@fluidframework/core-utils/internal";
+import { ISummaryTree, SummaryType } from "@fluidframework/driver-definitions";
+import { gcTreeKey } from "@fluidframework/runtime-definitions/internal";
+import { toFluidHandleInternal } from "@fluidframework/runtime-utils/internal";
 import {
 	ITestContainerConfig,
 	ITestObjectProvider,
@@ -22,7 +23,7 @@ import {
 	createTestConfigProvider,
 	summarizeNow,
 	waitForContainerConnection,
-} from "@fluidframework/test-utils";
+} from "@fluidframework/test-utils/internal";
 
 import {
 	getGCDeletedStateFromSummary,
@@ -36,8 +37,8 @@ import {
 describeCompat("GC unreference phases", "NoCompat", (getTestObjectProvider) => {
 	// Since these tests depend on these timing windows, they should not be run against drivers talking over the network
 	// (see this.skip() call below)
-	const tombstoneTimeoutMs = 200; // Tombstone at 200ms
-	const sweepGracePeriodMs = 200; // Sweep at 400ms
+	const tombstoneTimeoutMs = 300; // Tombstone at 300ms
+	const sweepGracePeriodMs = 300; // Sweep at 600ms
 
 	const configProvider = createTestConfigProvider();
 	const gcOptions: IGCRuntimeOptions = {
@@ -87,7 +88,6 @@ describeCompat("GC unreference phases", "NoCompat", (getTestObjectProvider) => {
 			this.skip();
 		}
 
-		configProvider.set("Fluid.GarbageCollection.ThrowOnTombstoneUsage", true);
 		configProvider.set(
 			"Fluid.GarbageCollection.TestOverride.TombstoneTimeoutMs",
 			tombstoneTimeoutMs,
@@ -218,7 +218,10 @@ describeCompat("GC unreference phases", "NoCompat", (getTestObjectProvider) => {
 		deletedState = getGCDeletedStateFromSummary(summaryTree);
 		assert(deletedState !== undefined, "Should have sweep state");
 		assert(deletedState.includes(dataStoreHandle.absolutePath), "Data Store should be swept");
-		assert(deletedState.includes(ddsHandle.absolutePath), "DDS should be swept");
+		assert(
+			deletedState.includes(toFluidHandleInternal(ddsHandle).absolutePath),
+			"DDS should be swept",
+		);
 		assert(deletedState.length === 2, "Nothing else should have been swept");
 		// Summary check
 		assert(

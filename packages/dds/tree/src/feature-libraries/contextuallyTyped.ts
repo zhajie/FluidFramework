@@ -3,17 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/core-utils";
+import { assert } from "@fluidframework/core-utils/internal";
 
 import {
 	CursorLocationType,
 	EmptyKey,
-	FieldKey,
-	ITreeCursorSynchronous,
-	MapTree,
-	TreeValue,
-	Value,
+	type FieldKey,
+	type ITreeCursorSynchronous,
+	type MapTree,
+	type Value,
 	isCursor,
+	Multiplicity,
 } from "../core/index.js";
 import { fail, isReadonlyArray } from "../util/index.js";
 
@@ -21,29 +21,32 @@ import { fail, isReadonlyArray } from "../util/index.js";
 // This module currently is assuming use of default-field-kinds.
 // The field kinds should instead come from a view schema registry thats provided somewhere.
 import { fieldKinds } from "./default-schema/index.js";
-import { TreeDataContext } from "./fieldGenerator.js";
-import { cursorForMapTreeField, cursorForMapTreeNode, mapTreeFromCursor } from "./mapTreeCursor.js";
-import { FlexFieldKind } from "./modular-schema/index.js";
-import { Multiplicity } from "./multiplicity.js";
+import type { TreeDataContext } from "./fieldGenerator.js";
 import {
+	cursorForMapTreeField,
+	cursorForMapTreeNode,
+	mapTreeFromCursor,
+} from "./mapTreeCursor.js";
+import type { FlexFieldKind } from "./modular-schema/index.js";
+import type {
 	AllowedTypesToFlexInsertableTree,
 	InsertableFlexField,
 	InsertableFlexNode,
 } from "./schema-aware/index.js";
 import {
-	AllowedTypeSet,
+	type AllowedTypeSet,
 	Any,
-	FlexAllowedTypes,
+	type FlexAllowedTypes,
 	FlexFieldNodeSchema,
-	FlexFieldSchema,
+	type FlexFieldSchema,
 	FlexMapNodeSchema,
 	FlexObjectNodeSchema,
-	FlexTreeNodeSchema,
-	FlexTreeSchema,
+	type FlexTreeNodeSchema,
+	type FlexTreeSchema,
 	LeafNodeSchema,
 	allowedTypesSchemaSet,
 } from "./typed-schema/index.js";
-import { allowsValue, isFluidHandle } from "./valueUtilities.js";
+import { allowsValue, isTreeValue } from "./valueUtilities.js";
 
 /**
  * This library defines a tree data format that can infer its types from context.
@@ -97,20 +100,6 @@ export const typeNameSymbol: unique symbol = Symbol(`${scope}:typeName`);
  */
 export const valueSymbol: unique symbol = Symbol(`${scope}:value`);
 
-/**
- * Checks if a value is a {@link TreeValue}.
- */
-export function isTreeValue(nodeValue: unknown): nodeValue is TreeValue {
-	switch (typeof nodeValue) {
-		case "string":
-		case "number":
-		case "boolean":
-			return true;
-		default:
-			return nodeValue === null || isFluidHandle(nodeValue);
-	}
-}
-
 export function getFieldKind(fieldSchema: FlexFieldSchema): FlexFieldKind {
 	// TODO:
 	// This module currently is assuming use of defaultFieldKinds.
@@ -136,7 +125,7 @@ export function getPossibleTypes(
 	context: FlexTreeSchema,
 	typeSet: AllowedTypeSet,
 	data: ContextuallyTypedNodeData,
-) {
+): FlexTreeNodeSchema[] {
 	// All types allowed by schema
 	const allowedTypes = getAllowedTypes(context, typeSet);
 
@@ -153,13 +142,14 @@ export function getPossibleTypes(
  * A symbol used to define a {@link MarkedArrayLike} interface.
  * @internal
  */
-export const arrayLikeMarkerSymbol: unique symbol = Symbol("editable-tree:arrayLikeMarker");
+export const arrayLikeMarkerSymbol: unique symbol = Symbol("flex-tree:arrayLikeMarker");
 
 /**
  * Can be used to mark a type which works like an array, but is not compatible with `Array.isArray`.
  * @internal
  */
-export interface MarkedArrayLike<TGet, TSet extends TGet = TGet> extends ArrayLikeMut<TGet, TSet> {
+export interface MarkedArrayLike<TGet, TSet extends TGet = TGet>
+	extends ArrayLikeMut<TGet, TSet> {
 	readonly [arrayLikeMarkerSymbol]: true;
 	[Symbol.iterator](): IterableIterator<TGet>;
 }
@@ -349,7 +339,11 @@ export function cursorForTypedTreeData<T extends FlexTreeNodeSchema>(
 	schema: T,
 	data: InsertableFlexNode<T>,
 ): ITreeCursorSynchronous {
-	return cursorFromContextualData(context, new Set([schema]), data as ContextuallyTypedNodeData);
+	return cursorFromContextualData(
+		context,
+		new Set([schema]),
+		data as ContextuallyTypedNodeData,
+	);
 }
 
 /**
@@ -488,7 +482,7 @@ function setFieldForKey(
 	const requiredFieldSchema = schema.getFieldSchema(key);
 	const multiplicity = getFieldKind(requiredFieldSchema).multiplicity;
 	if (multiplicity === Multiplicity.Single && context.fieldSource !== undefined) {
-		const fieldGenerator = context.fieldSource(key, requiredFieldSchema);
+		const fieldGenerator = context.fieldSource(key, requiredFieldSchema.stored);
 		if (fieldGenerator !== undefined) {
 			const children = fieldGenerator();
 			fields.set(key, children);

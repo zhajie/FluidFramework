@@ -13,17 +13,17 @@ import {
 	type IHostLoader,
 } from '@fluidframework/container-definitions/internal';
 import { IContainerExperimental, Loader, waitContainerToCatchUp } from '@fluidframework/container-loader/internal';
-import { DefaultSummaryConfiguration, SummaryCollection } from '@fluidframework/container-runtime';
+import { DefaultSummaryConfiguration, SummaryCollection } from '@fluidframework/container-runtime/internal';
 import type { ConfigTypes, IConfigProviderBase, IFluidHandle, IRequestHeader } from '@fluidframework/core-interfaces';
 import { ITelemetryBaseLogger } from '@fluidframework/core-interfaces';
-import { assert } from '@fluidframework/core-utils';
-import { ISequencedDocumentMessage } from '@fluidframework/protocol-definitions';
-import { createChildLogger } from '@fluidframework/telemetry-utils';
+import { assert } from '@fluidframework/core-utils/internal';
+import { ISequencedDocumentMessage } from '@fluidframework/driver-definitions/internal';
+import { createChildLogger } from '@fluidframework/telemetry-utils/internal';
 import {
 	MockContainerRuntimeFactory,
 	MockFluidDataStoreRuntime,
 	MockStorage,
-} from '@fluidframework/test-runtime-utils';
+} from '@fluidframework/test-runtime-utils/internal';
 import {
 	ChannelFactoryRegistry,
 	ITestFluidObject,
@@ -32,7 +32,7 @@ import {
 	TestFluidObjectFactory,
 	TestObjectProvider,
 	createAndAttachContainer,
-} from '@fluidframework/test-utils';
+} from '@fluidframework/test-utils/internal';
 import { expect } from 'chai';
 import { v5 as uuidv5 } from 'uuid';
 
@@ -432,7 +432,10 @@ export function createStableEdits(
 		ChangeInternal.build([node], 0 as DetachedSequenceId),
 		ChangeInternal.insert(
 			0 as DetachedSequenceId,
-			StablePlace.atEndOf({ label: testTraitLabel, parent: idContext.convertToNodeId(initialTree.identifier) })
+			StablePlace.atEndOf({
+				label: testTraitLabel,
+				parent: idContext.convertToNodeId(initialTree.identifier),
+			})
 		),
 	]);
 

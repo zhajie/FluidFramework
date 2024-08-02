@@ -8,13 +8,19 @@
 import { strict as assert } from "node:assert";
 
 import {
-	FieldAnchor,
-	ITreeSubscriptionCursor,
+	type FieldAnchor,
+	type ITreeSubscriptionCursor,
 	TreeNavigationResult,
 	rootFieldKey,
 } from "../../../core/index.js";
-import { SchemaBuilder, leaf, leaf as leafDomain } from "../../../domains/index.js";
-import { Context } from "../../../feature-libraries/flex-tree/context.js";
+import {
+	SchemaBuilder,
+	leaf,
+	leaf as leafDomain,
+	singleJsonCursor,
+	typedJsonCursor,
+} from "../../../domains/index.js";
+import type { Context } from "../../../feature-libraries/flex-tree/context.js";
 import {
 	unboxedField,
 	unboxedTree,
@@ -23,11 +29,11 @@ import {
 import {
 	Any,
 	FieldKinds,
-	FlexAllowedTypes,
-	FlexFieldKind,
+	type FlexAllowedTypes,
+	type FlexFieldKind,
 	FlexFieldSchema,
 } from "../../../feature-libraries/index.js";
-import { type TreeContent } from "../../../shared-tree/index.js";
+import type { TreeContent } from "../../../shared-tree/index.js";
 
 import { contextWithContentReadonly } from "./utils.js";
 
@@ -37,9 +43,12 @@ const rootFieldAnchor: FieldAnchor = { parent: undefined, fieldKey: rootFieldKey
  * Creates a cursor from the provided `context` and moves it to the provided `anchor`.
  */
 function initializeCursor(context: Context, anchor: FieldAnchor): ITreeSubscriptionCursor {
-	const cursor = context.forest.allocateCursor();
+	const cursor = context.checkout.forest.allocateCursor();
 
-	assert.equal(context.forest.tryMoveCursorToField(anchor, cursor), TreeNavigationResult.Ok);
+	assert.equal(
+		context.checkout.forest.tryMoveCursorToField(anchor, cursor),
+		TreeNavigationResult.Ok,
+	);
 	return cursor;
 }
 
@@ -85,7 +94,7 @@ describe("unboxedField", () => {
 
 			const { context, cursor } = initializeTreeWithContent({
 				schema,
-				initialTree: 42,
+				initialTree: singleJsonCursor(42),
 			});
 
 			assert.equal(unboxedField(context, fieldSchema, cursor), 42);
@@ -101,13 +110,14 @@ describe("unboxedField", () => {
 		const fieldSchema = SchemaBuilder.optional(objectSchema);
 		const schema = builder.intoSchema(fieldSchema);
 
-		const initialTree = {
+		const initialTree = typedJsonCursor({
+			[typedJsonCursor.type]: objectSchema,
 			name: "Foo",
 			child: {
+				[typedJsonCursor.type]: objectSchema,
 				name: "Bar",
-				child: undefined,
 			},
-		};
+		});
 
 		const { context, cursor } = initializeTreeWithContent({ schema, initialTree });
 
@@ -130,7 +140,7 @@ describe("unboxedField", () => {
 
 		const { context, cursor } = initializeTreeWithContent({
 			schema,
-			initialTree: ["Hello", "world"],
+			initialTree: ["Hello", "world"].map((c) => singleJsonCursor(c)),
 		});
 
 		const unboxed = unboxedField(context, fieldSchema, cursor);
@@ -143,7 +153,10 @@ describe("unboxedField", () => {
 		const fieldSchema = SchemaBuilder.optional(Any);
 		const schema = builder.intoSchema(fieldSchema);
 
-		const { context, cursor } = initializeTreeWithContent({ schema, initialTree: 42 });
+		const { context, cursor } = initializeTreeWithContent({
+			schema,
+			initialTree: singleJsonCursor(42),
+		});
 
 		// Type is not known based on schema, so node will not be unboxed.
 		const unboxed = unboxedField(context, fieldSchema, cursor);
@@ -160,7 +173,7 @@ describe("unboxedTree", () => {
 
 		const { context, cursor } = initializeTreeWithContent({
 			schema,
-			initialTree: "Hello world",
+			initialTree: singleJsonCursor("Hello world"),
 		});
 		cursor.enterNode(0); // Root node field has 1 node; move into it
 
@@ -175,10 +188,11 @@ describe("unboxedTree", () => {
 
 		const { context, cursor } = initializeTreeWithContent({
 			schema,
-			initialTree: {
+			initialTree: typedJsonCursor({
+				[typedJsonCursor.type]: mapSchema,
 				foo: "Hello",
 				bar: "world",
-			},
+			}),
 		});
 		cursor.enterNode(0); // Root node field has 1 node; move into it
 
@@ -197,13 +211,14 @@ describe("unboxedTree", () => {
 		const rootSchema = builder.optional(objectSchema);
 		const schema = builder.intoSchema(rootSchema);
 
-		const initialTree = {
+		const initialTree = typedJsonCursor({
+			[typedJsonCursor.type]: objectSchema,
 			name: "Foo",
 			child: {
+				[typedJsonCursor.type]: objectSchema,
 				name: "Bar",
-				child: undefined,
 			},
-		};
+		});
 
 		const { context, cursor } = initializeTreeWithContent({ schema, initialTree });
 		cursor.enterNode(0); // Root node field has 1 node; move into it
@@ -223,7 +238,10 @@ describe("unboxedUnion", () => {
 		const fieldSchema = SchemaBuilder.optional(Any);
 		const schema = builder.intoSchema(fieldSchema);
 
-		const { context, cursor } = initializeTreeWithContent({ schema, initialTree: 42 });
+		const { context, cursor } = initializeTreeWithContent({
+			schema,
+			initialTree: singleJsonCursor(42),
+		});
 		cursor.enterNode(0); // Root node field has 1 node; move into it
 
 		// Type is not known based on schema, so node will not be unboxed.
@@ -239,7 +257,7 @@ describe("unboxedUnion", () => {
 
 		const { context, cursor } = initializeTreeWithContent({
 			schema,
-			initialTree: false,
+			initialTree: singleJsonCursor(false),
 		});
 		cursor.enterNode(0); // Root node field has 1 node; move into it
 
@@ -253,7 +271,7 @@ describe("unboxedUnion", () => {
 
 		const { context, cursor } = initializeTreeWithContent({
 			schema,
-			initialTree: "Hello world",
+			initialTree: singleJsonCursor("Hello world"),
 		});
 		cursor.enterNode(0); // Root node field has 1 node; move into it
 

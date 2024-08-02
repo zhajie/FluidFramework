@@ -3,13 +3,18 @@
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/core-utils";
+import { assert } from "@fluidframework/core-utils/internal";
 import {
 	IChannelAttributes,
 	IFluidDataStoreRuntime,
 	Serializable,
-} from "@fluidframework/datastore-definitions";
-import { BaseSegment, IJSONSegment, ISegment, PropertySet } from "@fluidframework/merge-tree";
+} from "@fluidframework/datastore-definitions/internal";
+import {
+	BaseSegment,
+	IJSONSegment,
+	ISegment,
+	PropertySet,
+} from "@fluidframework/merge-tree/internal";
 
 import { SharedSegmentSequence } from "./sequence.js";
 

@@ -3,13 +3,20 @@
  * Licensed under the MIT License.
  */
 
-import { IMemoryTestObject, benchmarkMemory } from "@fluid-tools/benchmark";
-import { MockFluidDataStoreRuntime } from "@fluidframework/test-runtime-utils";
+import {
+	type IMemoryTestObject,
+	benchmarkMemory,
+	isInPerformanceTestingMode,
+} from "@fluid-tools/benchmark";
+import { MockFluidDataStoreRuntime } from "@fluidframework/test-runtime-utils/internal";
 
-import { ISharedDirectory, SharedDirectory } from "../../index.js";
+import { type ISharedDirectory, SharedDirectory } from "../../index.js";
 
 function createLocalDirectory(id: string): ISharedDirectory {
-	const directory = SharedDirectory.getFactory().create(new MockFluidDataStoreRuntime(), id);
+	const directory = SharedDirectory.create(
+		new MockFluidDataStoreRuntime({ registry: [SharedDirectory.getFactory()] }),
+		id,
+	);
 	return directory;
 }
 
@@ -45,7 +52,10 @@ describe("SharedDirectory memory usage", () => {
 		})(),
 	);
 
-	const numbersOfEntriesForTests = [1000, 10_000, 100_000];
+	const numbersOfEntriesForTests = isInPerformanceTestingMode
+		? [1000, 10_000, 100_000]
+		: // When not measuring perf, use a single smaller data size so the tests run faster.
+			[10];
 
 	for (const x of numbersOfEntriesForTests) {
 		benchmarkMemory(

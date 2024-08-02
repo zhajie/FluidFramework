@@ -13,12 +13,12 @@ import {
 	type ISourcedDevtoolsMessage,
 	type InboundHandlers,
 	handleIncomingMessage,
-} from "@fluidframework/devtools-core";
+} from "@fluidframework/devtools-core/internal";
 import React from "react";
 
 import { useMessageRelay } from "../../MessageRelayContext.js";
 
-import { type HasLabel } from "./CommonInterfaces.js";
+import type { HasLabel } from "./CommonInterfaces.js";
 import { TreeDataView } from "./TreeDataView.js";
 import { TreeHeader } from "./TreeHeader.js";
 import { TreeItem } from "./TreeItem.js";

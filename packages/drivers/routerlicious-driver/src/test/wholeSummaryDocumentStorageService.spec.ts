@@ -5,8 +5,8 @@
 
 import assert from "assert";
 
-import { ISummaryTree, SummaryType } from "@fluidframework/protocol-definitions";
-import { createChildLogger } from "@fluidframework/telemetry-utils";
+import { ISummaryTree, SummaryType } from "@fluidframework/driver-definitions";
+import { createChildLogger } from "@fluidframework/telemetry-utils/internal";
 
 import {
 	IWholeFlatSnapshot,

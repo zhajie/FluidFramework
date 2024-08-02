@@ -5,7 +5,7 @@
 
 /* eslint-disable no-bitwise */
 
-import { assert, unreachableCase } from "@fluidframework/core-utils";
+import { assert, unreachableCase } from "@fluidframework/core-utils/internal";
 import {
 	LocalReferencePosition,
 	MergeTreeDeltaOperationType,
@@ -13,8 +13,7 @@ import {
 	MergeTreeDeltaType,
 	PropertySet,
 	ReferenceType,
-	SlidingPreference,
-	// eslint-disable-next-line import/no-deprecated
+	SlidingPreference, // eslint-disable-next-line import/no-deprecated
 	SortedSet,
 	appendToMergeTreeDeltaRevertibles,
 	discardMergeTreeDeltaRevertible,
@@ -22,15 +21,17 @@ import {
 	isMergeTreeDeltaRevertible,
 	refTypeIncludesFlag,
 	revertMergeTreeDeltaRevertibles,
-} from "@fluidframework/merge-tree";
+	InteriorSequencePlace,
+	Side,
+} from "@fluidframework/merge-tree/internal";
 
-import { InteriorSequencePlace, Side } from "./intervalCollection.js";
 import { IntervalOpType, SequenceInterval } from "./intervals/index.js";
 import { ISequenceDeltaRange, SequenceDeltaEvent } from "./sequenceDeltaEvent.js";
-import { SharedString, SharedStringSegment } from "./sharedString.js";
+import { ISharedString, SharedStringSegment } from "./sharedString.js";
 
 /**
  * Data for undoing edits on SharedStrings and Intervals.
+ * @legacy
  * @alpha
  */
 export type SharedStringRevertible = MergeTreeDeltaRevertible | IntervalRevertible;
@@ -39,6 +40,7 @@ const idMap = new Map<string, string>();
 
 /**
  * Data for undoing edits affecting Intervals.
+ * @legacy
  * @alpha
  */
 export type IntervalRevertible =
@@ -80,7 +82,9 @@ export type IntervalRevertible =
 			mergeTreeRevertible: MergeTreeDeltaRevertible;
 	  };
 
-type TypedRevertible<T extends IntervalRevertible["event"]> = IntervalRevertible & { event: T };
+type TypedRevertible<T extends IntervalRevertible["event"]> = IntervalRevertible & {
+	event: T;
+};
 
 function getUpdatedIdFromInterval(interval: SequenceInterval): string {
 	const maybeId = interval.getIntervalId();
@@ -93,6 +97,7 @@ function getUpdatedId(intervalId: string): string {
 
 /**
  * Create revertibles for adding an interval
+ * @legacy
  * @alpha
  */
 export function appendAddIntervalToRevertibles(
@@ -109,10 +114,11 @@ export function appendAddIntervalToRevertibles(
 
 /**
  * Create revertibles for deleting an interval
+ * @legacy
  * @alpha
  */
 export function appendDeleteIntervalToRevertibles(
-	string: SharedString,
+	string: ISharedString,
 	interval: SequenceInterval,
 	revertibles: SharedStringRevertible[],
 ): SharedStringRevertible[] {
@@ -161,10 +167,11 @@ export function appendDeleteIntervalToRevertibles(
 
 /**
  * Create revertibles for moving endpoints of an interval
+ * @legacy
  * @alpha
  */
 export function appendChangeIntervalToRevertibles(
-	string: SharedString,
+	string: ISharedString,
 	newInterval: SequenceInterval,
 	previousInterval: SequenceInterval,
 	revertibles: SharedStringRevertible[],
@@ -211,6 +218,7 @@ export function appendChangeIntervalToRevertibles(
 
 /**
  * Create revertibles for changing properties of an interval
+ * @legacy
  * @alpha
  */
 export function appendIntervalPropertyChangedToRevertibles(
@@ -271,10 +279,11 @@ function addIfRevertibleRef(
 /**
  * Create revertibles for SharedStringDeltas, handling indirectly modified intervals
  * (e.g. reverting remove of a range that contains an interval will move the interval back)
+ * @legacy
  * @alpha
  */
 export function appendSharedStringDeltaToRevertibles(
-	string: SharedString,
+	string: ISharedString,
 	delta: SequenceDeltaEvent,
 	revertibles: SharedStringRevertible[],
 ) {
@@ -315,7 +324,9 @@ export function appendSharedStringDeltaToRevertibles(
 				event: IntervalOpType.POSITION_REMOVE,
 				intervals: [],
 				revertibleRefs,
-				mergeTreeRevertible: removeRevertibles[0],
+				// TODO Non null asserting, why is this not null?
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+				mergeTreeRevertible: removeRevertibles[0]!,
 			};
 
 			// add an interval for each startInterval, accounting for any corresponding endIntervals
@@ -326,7 +337,9 @@ export function appendSharedStringDeltaToRevertibles(
 				});
 				let endOffset: number | undefined;
 				if (endIntervalIndex !== -1) {
-					endOffset = endIntervals[endIntervalIndex].offset;
+					// TODO Non null asserting, why is this not null?
+					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+					endOffset = endIntervals[endIntervalIndex]!.offset;
 					endIntervals.splice(endIntervalIndex, 1);
 				}
 
@@ -355,7 +368,10 @@ export function appendSharedStringDeltaToRevertibles(
 	// Handle any merge tree delta that is not REMOVE or is REMOVE with no interval endpoints
 	const mergeTreeRevertibles: MergeTreeDeltaRevertible[] = [];
 	// Allow merging MergeTreeDeltaRevertible with previous
-	if (revertibles.length > 0 && isMergeTreeDeltaRevertible(revertibles[revertibles.length - 1])) {
+	if (
+		revertibles.length > 0 &&
+		isMergeTreeDeltaRevertible(revertibles[revertibles.length - 1])
+	) {
 		mergeTreeRevertibles.push(revertibles.pop() as MergeTreeDeltaRevertible);
 	}
 	appendToMergeTreeDeltaRevertibles(delta.deltaArgs, mergeTreeRevertibles);
@@ -364,10 +380,11 @@ export function appendSharedStringDeltaToRevertibles(
 
 /**
  * Clean up resources held by revertibles that are no longer needed.
+ * @legacy
  * @alpha
  */
 export function discardSharedStringRevertibles(
-	sharedString: SharedString,
+	sharedString: ISharedString,
 	revertibles: SharedStringRevertible[],
 ) {
 	revertibles.forEach((r) => {
@@ -380,7 +397,11 @@ export function discardSharedStringRevertibles(
 	});
 }
 
-function getSlidePosition(string: SharedString, lref: LocalReferencePosition, pos: number): number {
+function getSlidePosition(
+	string: ISharedString,
+	lref: LocalReferencePosition,
+	pos: number,
+): number {
 	const slide = getSlideToSegoff(
 		{ segment: lref.getSegment(), offset: undefined },
 		lref.slidingPreference,
@@ -398,7 +419,7 @@ function isValidRange(
 	startSlide: SlidingPreference | undefined,
 	end: number,
 	endSlide: SlidingPreference | undefined,
-	string: SharedString,
+	string: ISharedString,
 ) {
 	return (
 		start >= 0 &&
@@ -407,13 +428,12 @@ function isValidRange(
 		end < string.getLength() &&
 		(start < end ||
 			(start === end &&
-				(startSlide === SlidingPreference.FORWARD ||
-					endSlide !== SlidingPreference.FORWARD)))
+				(startSlide === SlidingPreference.FORWARD || endSlide !== SlidingPreference.FORWARD)))
 	);
 }
 
 function revertLocalAdd(
-	string: SharedString,
+	string: ISharedString,
 	revertible: TypedRevertible<typeof IntervalOpType.ADD>,
 ) {
 	const id = getUpdatedIdFromInterval(revertible.interval);
@@ -431,18 +451,18 @@ function createSequencePlace(
 		? {
 				pos,
 				side: Side.After,
-		  }
+			}
 		: newSlidingPreference === SlidingPreference.FORWARD &&
-		  oldSlidingPreference === SlidingPreference.BACKWARD
-		? {
-				pos,
-				side: Side.Before,
-		  }
-		: pos; // Avoid setting side if possible since stickiness may not be enabled
+				oldSlidingPreference === SlidingPreference.BACKWARD
+			? {
+					pos,
+					side: Side.Before,
+				}
+			: pos; // Avoid setting side if possible since stickiness may not be enabled
 }
 
 function revertLocalDelete(
-	string: SharedString,
+	string: ISharedString,
 	revertible: TypedRevertible<typeof IntervalOpType.DELETE>,
 ) {
 	const label = revertible.interval.properties.referenceRangeLabels[0];
@@ -481,7 +501,7 @@ function revertLocalDelete(
 }
 
 function revertLocalChange(
-	string: SharedString,
+	string: ISharedString,
 	revertible: TypedRevertible<typeof IntervalOpType.CHANGE>,
 ) {
 	const label = revertible.interval.properties.referenceRangeLabels[0];
@@ -521,7 +541,7 @@ function revertLocalChange(
 }
 
 function revertLocalPropertyChanged(
-	string: SharedString,
+	string: ISharedString,
 	revertible: TypedRevertible<typeof IntervalOpType.PROPERTY_CHANGED>,
 ) {
 	const label = revertible.interval.properties.referenceRangeLabels[0];
@@ -555,7 +575,7 @@ function newPosition(offset: number | undefined, restoredRanges: SortedRangeSet)
 function newEndpointPosition(
 	offset: number | undefined,
 	restoredRanges: SortedRangeSet,
-	sharedString: SharedString,
+	sharedString: ISharedString,
 ) {
 	const pos = newPosition(offset, restoredRanges);
 	return pos === undefined ? undefined : sharedString.getPosition(pos.segment) + pos.offset;
@@ -569,12 +589,14 @@ interface RangeInfo {
 // eslint-disable-next-line import/no-deprecated
 class SortedRangeSet extends SortedSet<RangeInfo, string> {
 	protected getKey(item: RangeInfo): string {
-		return item.ranges[0].segment.ordinal;
+		// TODO Non null asserting, why is this not null?
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+		return item.ranges[0]!.segment.ordinal;
 	}
 }
 
 function revertLocalSequenceRemove(
-	sharedString: SharedString,
+	sharedString: ISharedString,
 	revertible: TypedRevertible<typeof IntervalOpType.POSITION_REMOVE>,
 ) {
 	const restoredRanges = new SortedRangeSet();
@@ -655,10 +677,11 @@ function revertLocalSequenceRemove(
 
 /**
  * Invoke revertibles to reverse prior edits
+ * @legacy
  * @alpha
  */
 export function revertSharedStringRevertibles(
-	sharedString: SharedString,
+	sharedString: ISharedString,
 	revertibles: SharedStringRevertible[],
 ) {
 	while (revertibles.length > 0) {

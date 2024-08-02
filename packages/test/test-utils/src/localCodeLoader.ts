@@ -5,7 +5,7 @@
 
 import assert from "assert";
 
-import { ContainerRuntimeFactoryWithDefaultDataStore } from "@fluidframework/aqueduct";
+import { ContainerRuntimeFactoryWithDefaultDataStore } from "@fluidframework/aqueduct/internal";
 import {
 	ICodeDetailsLoader,
 	IFluidCodeDetails,
@@ -14,12 +14,12 @@ import {
 	IProvideFluidCodeDetailsComparer,
 	IProvideRuntimeFactory,
 } from "@fluidframework/container-definitions/internal";
-import { IContainerRuntimeOptions } from "@fluidframework/container-runtime";
+import { IContainerRuntimeOptions } from "@fluidframework/container-runtime/internal";
 import {
 	IProvideFluidDataStoreFactory,
 	IProvideFluidDataStoreRegistry,
-} from "@fluidframework/runtime-definitions";
-import { createDataStoreFactory } from "@fluidframework/runtime-utils";
+} from "@fluidframework/runtime-definitions/internal";
+import { createDataStoreFactory } from "@fluidframework/runtime-utils/internal";
 
 /**
  * @internal
@@ -75,9 +75,7 @@ export class LocalCodeLoader implements ICodeDetailsLoader {
 							...maybeExport,
 							IRuntimeFactory: new ContainerRuntimeFactoryWithDefaultDataStore({
 								defaultFactory,
-								registryEntries: [
-									[defaultFactory.type, Promise.resolve(defaultFactory)],
-								],
+								registryEntries: [[defaultFactory.type, Promise.resolve(defaultFactory)]],
 								runtimeOptions,
 							}),
 						},

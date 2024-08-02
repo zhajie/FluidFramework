@@ -3,11 +3,14 @@
  * Licensed under the MIT License.
  */
 
-import { DocumentDeltaConnection } from "@fluidframework/driver-base";
-import { IAnyDriverError } from "@fluidframework/driver-definitions";
-import { IDocumentDeltaConnection } from "@fluidframework/driver-definitions/internal";
-import { IClient, IConnect } from "@fluidframework/protocol-definitions";
-import { ITelemetryLoggerExt } from "@fluidframework/telemetry-utils";
+import { DocumentDeltaConnection } from "@fluidframework/driver-base/internal";
+import { IClient } from "@fluidframework/driver-definitions";
+import {
+	IDocumentDeltaConnection,
+	IAnyDriverError,
+	IConnect,
+} from "@fluidframework/driver-definitions/internal";
+import { ITelemetryLoggerExt } from "@fluidframework/telemetry-utils/internal";
 import type { io as SocketIOClientStatic } from "socket.io-client";
 
 import { IR11sSocketError, errorObjectFromSocketError } from "./errorUtils.js";

@@ -3,14 +3,14 @@
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/core-utils";
+import { assert } from "@fluidframework/core-utils/internal";
 
 import {
 	CursorLocationType,
-	DetachedField,
-	FieldKey,
-	ITreeCursor,
-	MapTree,
+	type DetachedField,
+	type FieldKey,
+	type ITreeCursor,
+	type MapTree,
 	aboveRootPlaceholder,
 	detachedFieldAsKey,
 	mapCursorField,
@@ -18,8 +18,8 @@ import {
 } from "../core/index.js";
 
 import {
-	CursorAdapter,
-	CursorWithNode,
+	type CursorAdapter,
+	type CursorWithNode,
 	stackTreeFieldCursor,
 	stackTreeNodeCursor,
 } from "./treeCursorUtils.js";

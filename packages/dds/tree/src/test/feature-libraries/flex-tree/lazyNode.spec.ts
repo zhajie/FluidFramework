@@ -7,22 +7,26 @@
 
 import { strict as assert, fail } from "assert";
 
-import { noopValidator } from "../../../codec/index.js";
 import {
-	Anchor,
-	AnchorNode,
+	type Anchor,
+	type AnchorNode,
 	EmptyKey,
-	FieldAnchor,
-	FieldKey,
-	ITreeSubscriptionCursor,
-	MapTree,
+	type FieldAnchor,
+	type FieldKey,
+	type ITreeSubscriptionCursor,
+	type MapTree,
 	TreeNavigationResult,
 	rootFieldKey,
 } from "../../../core/index.js";
-import { SchemaBuilder, leaf as leafDomain } from "../../../domains/index.js";
-import { Context, getTreeContext } from "../../../feature-libraries/flex-tree/context.js";
 import {
-	PropertyNameFromFieldKey,
+	SchemaBuilder,
+	leaf as leafDomain,
+	singleJsonCursor,
+	typedJsonCursor,
+} from "../../../domains/index.js";
+import { type Context, getTreeContext } from "../../../feature-libraries/flex-tree/context.js";
+import {
+	type PropertyNameFromFieldKey,
 	reservedObjectNodeFieldPropertyNamePrefixes,
 } from "../../../feature-libraries/flex-tree/flexTreeTypes.js";
 import {
@@ -37,28 +41,20 @@ import {
 import {
 	Any,
 	DefaultChangeFamily,
-	DefaultChangeset,
+	type DefaultChangeset,
 	DefaultEditBuilder,
-	FlexAllowedTypes,
-	FlexFieldKind,
-	FlexTreeField,
-	FlexTreeNode,
-	FlexTreeNodeSchema,
-	createMockNodeKeyManager,
-	cursorForJsonableTreeNode,
-	nodeKeyFieldKey,
-	typeNameSymbol,
+	type FlexAllowedTypes,
+	type FlexFieldKind,
+	type FlexTreeField,
+	type FlexTreeNode,
+	type FlexTreeNodeSchema,
 } from "../../../feature-libraries/index.js";
-import { TreeContent } from "../../../shared-tree/index.js";
+import type { TreeContent, ITreeCheckout } from "../../../shared-tree/index.js";
 import { brand, capitalize } from "../../../util/index.js";
-import {
-	failCodec,
-	flexTreeViewWithContent,
-	forestWithContent,
-	testRevisionTagCodec,
-} from "../../utils.js";
+import { failCodecFamily, flexTreeViewWithContent, forestWithContent } from "../../utils.js";
 
 import { contextWithContentReadonly } from "./utils.js";
+import { MockNodeKeyManager } from "../../../feature-libraries/node-key/mockNodeKeyManager.js";
 
 function collectPropertyNames(obj: object): Set<string> {
 	if (obj == null) {
@@ -76,9 +72,12 @@ const rootFieldAnchor: FieldAnchor = { parent: undefined, fieldKey: rootFieldKey
  * Creates a cursor from the provided `context` and moves it to the provided `anchor`.
  */
 function initializeCursor(context: Context, anchor: FieldAnchor): ITreeSubscriptionCursor {
-	const cursor = context.forest.allocateCursor();
+	const cursor = context.checkout.forest.allocateCursor();
 
-	assert.equal(context.forest.tryMoveCursorToField(anchor, cursor), TreeNavigationResult.Ok);
+	assert.equal(
+		context.checkout.forest.tryMoveCursorToField(anchor, cursor),
+		TreeNavigationResult.Ok,
+	);
 	return cursor;
 }
 
@@ -114,8 +113,8 @@ function createAnchors(
 	context: Context,
 	cursor: ITreeSubscriptionCursor,
 ): { anchor: Anchor; anchorNode: AnchorNode } {
-	const anchor = context.forest.anchors.track(cursor.getPath() ?? fail());
-	const anchorNode = context.forest.anchors.locate(anchor) ?? fail();
+	const anchor = context.checkout.forest.anchors.track(cursor.getPath() ?? fail());
+	const anchorNode = context.checkout.forest.anchors.locate(anchor) ?? fail();
 
 	return { anchor, anchorNode };
 }
@@ -129,7 +128,7 @@ describe("LazyNode", () => {
 
 			const { cursor, context } = initializeTreeWithContent({
 				schema: testSchema,
-				initialTree: {},
+				initialTree: singleJsonCursor({}),
 			});
 			cursor.enterNode(0);
 
@@ -201,7 +200,10 @@ describe("LazyNode", () => {
 
 			// #endregion
 
-			const { context, cursor } = initializeTreeWithContent({ schema, initialTree: {} });
+			const { context, cursor } = initializeTreeWithContent({
+				schema,
+				initialTree: singleJsonCursor({}),
+			});
 			cursor.enterNode(0);
 
 			const { anchor, anchorNode } = createAnchors(context, cursor);
@@ -238,9 +240,10 @@ describe("LazyNode", () => {
 
 			const { context, cursor } = initializeTreeWithContent({
 				schema,
-				initialTree: {
+				initialTree: typedJsonCursor({
+					[typedJsonCursor.type]: fieldNodeSchema,
 					[EmptyKey]: "Hello world",
-				},
+				}),
 			});
 			cursor.enterNode(0);
 
@@ -266,9 +269,10 @@ describe("LazyNode", () => {
 
 		const { context, cursor } = initializeTreeWithContent({
 			schema,
-			initialTree: {
+			initialTree: typedJsonCursor({
+				[typedJsonCursor.type]: fieldNodeSchema,
 				[EmptyKey]: "Hello world",
-			},
+			}),
 		});
 		cursor.enterNode(0);
 		const { anchor, anchorNode } = createAnchors(context, cursor);
@@ -295,7 +299,7 @@ describe("LazyNode", () => {
 
 		const { context, cursor } = initializeTreeWithContent({
 			schema,
-			initialTree: "Hello world",
+			initialTree: singleJsonCursor("Hello world"),
 		});
 		cursor.enterNode(0);
 
@@ -326,26 +330,23 @@ describe("LazyNode", () => {
 		});
 
 		const editBuilder = new DefaultEditBuilder(
-			new DefaultChangeFamily(testRevisionTagCodec, failCodec, {
-				jsonValidator: noopValidator,
-			}),
+			new DefaultChangeFamily(failCodecFamily),
 			(change: DefaultChangeset) => {
 				editCallCount++;
 			},
 		);
 		const forest = forestWithContent({
 			schema,
-			initialTree: {
+			initialTree: typedJsonCursor({
+				[typedJsonCursor.type]: mapNodeSchema,
 				foo: "Hello",
 				bar: "world",
-			},
+			}),
 		});
 		const context = getTreeContext(
 			schema,
-			forest,
-			editBuilder,
-			createMockNodeKeyManager(),
-			brand(nodeKeyFieldKey),
+			{ forest, editor: editBuilder } as unknown as ITreeCheckout,
+			new MockNodeKeyManager(),
 		);
 
 		const cursor = initializeCursor(context, rootFieldAnchor);
@@ -366,19 +367,19 @@ describe("LazyNode", () => {
 		});
 
 		it("set", () => {
-			const view = flexTreeViewWithContent({ schema, initialTree: {} });
+			const view = flexTreeViewWithContent({
+				schema,
+				initialTree: typedJsonCursor({ [typedJsonCursor.type]: mapNodeSchema }),
+			});
 			const mapNode = view.flexTree.content;
 			assert(mapNode.is(mapNodeSchema));
 
-			mapNode.set("baz", "First edit");
-			mapNode.set("foo", "Second edit");
+			mapNode.set("baz", singleJsonCursor("First edit"));
+			mapNode.set("foo", singleJsonCursor("Second edit"));
 			assert.equal(mapNode.get("baz"), "First edit");
 			assert.equal(mapNode.get("foo"), "Second edit");
 
-			mapNode.set(
-				"foo",
-				cursorForJsonableTreeNode({ type: leafDomain.string.name, value: "X" }),
-			);
+			mapNode.set("foo", singleJsonCursor("X"));
 			assert.equal(mapNode.get("foo"), "X");
 			mapNode.set("foo", undefined);
 			assert.equal(mapNode.get("foo"), undefined);
@@ -386,7 +387,10 @@ describe("LazyNode", () => {
 		});
 
 		it("getBoxed empty", () => {
-			const view = flexTreeViewWithContent({ schema, initialTree: {} });
+			const view = flexTreeViewWithContent({
+				schema,
+				initialTree: typedJsonCursor({ [typedJsonCursor.type]: mapNodeSchema }),
+			});
 			const mapNode = view.flexTree.content;
 			assert(mapNode.is(mapNodeSchema));
 
@@ -426,25 +430,21 @@ describe("LazyNode", () => {
 		});
 
 		const editBuilder = new DefaultEditBuilder(
-			new DefaultChangeFamily(testRevisionTagCodec, failCodec, {
-				jsonValidator: noopValidator,
-			}),
+			new DefaultChangeFamily(failCodecFamily),
 			(change: DefaultChangeset) => {
 				editCallCount++;
 			},
 		);
-		const initialTree = {
-			[typeNameSymbol]: structNodeSchema.name,
+		const initialTree = typedJsonCursor({
+			[typedJsonCursor.type]: structNodeSchema,
 			foo: "Hello world", // Will unbox
 			bar: [], // Won't unbox
-		};
+		});
 		const forest = forestWithContent({ schema, initialTree });
 		const context = getTreeContext(
 			schema,
-			forest,
-			editBuilder,
-			createMockNodeKeyManager(),
-			brand(nodeKeyFieldKey),
+			{ forest, editor: editBuilder } as unknown as ITreeCheckout,
+			new MockNodeKeyManager(),
 		);
 
 		const cursor = initializeCursor(context, rootFieldAnchor);
@@ -456,7 +456,7 @@ describe("LazyNode", () => {
 
 		it("boxing", () => {
 			assert.equal(node.foo, node.boxedFoo.content);
-			assert(node.bar.isSameAs(node.boxedBar));
+			assert(node.bar === node.boxedBar);
 		});
 
 		it("value", () => {
@@ -475,7 +475,7 @@ describe("LazyNode", () => {
 			node.foo = "First edit";
 			assert.equal(editCallCount, 1);
 
-			node.setFoo("Second edit");
+			node.setFoo(singleJsonCursor("Second edit"));
 			assert.equal(editCallCount, 2);
 		});
 	});
@@ -493,12 +493,13 @@ describe("LazyNode", () => {
 
 		const context = contextWithContentReadonly({
 			schema,
-			initialTree: {
+			initialTree: typedJsonCursor({
+				[typedJsonCursor.type]: objectNodeSchema,
 				optional: "Hello",
 				required: true,
 				sequence: [1, 2, 3],
 				value: "x",
-			},
+			}),
 		});
 
 		const cursor = initializeCursor(context, rootFieldAnchor);

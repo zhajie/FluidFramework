@@ -11,8 +11,8 @@ import { IContainer, IFluidCodeDetails } from "@fluidframework/container-definit
 import { Loader } from "@fluidframework/container-loader/internal";
 import { IFluidHandle } from "@fluidframework/core-interfaces";
 import { IDocumentServiceFactory } from "@fluidframework/driver-definitions/internal";
-import type { ISharedMap } from "@fluidframework/map";
-import { IContainerRuntimeBase } from "@fluidframework/runtime-definitions";
+import type { ISharedMap } from "@fluidframework/map/internal";
+import { IContainerRuntimeBase } from "@fluidframework/runtime-definitions/internal";
 import {
 	ITestFluidObject,
 	ITestObjectProvider,
@@ -20,7 +20,7 @@ import {
 	TestFluidObject,
 	TestFluidObjectFactory,
 	createDocumentId,
-} from "@fluidframework/test-utils";
+} from "@fluidframework/test-utils/internal";
 
 import { wrapObjectAndOverride } from "../mocking.js";
 
@@ -203,8 +203,7 @@ describeCompat(
 
 				const rehydratedEntryPoint =
 					(await rehydratedContainer.getEntryPoint()) as TestFluidObject;
-				const rootOfDds2 =
-					await rehydratedEntryPoint.getSharedObject<ISharedMap>(sharedMapId);
+				const rootOfDds2 = await rehydratedEntryPoint.getSharedObject<ISharedMap>(sharedMapId);
 				const dds2Handle: IFluidHandle<ISharedMap> | undefined = rootOfDds2.get(dds2Key);
 
 				// validate dds
@@ -229,10 +228,7 @@ describeCompat(
 
 				// create a new dds
 				const ddsId = "notbounddds";
-				const dds2 = dataStore2.runtime.createChannel(
-					ddsId,
-					SharedString.getFactory().type,
-				);
+				const dds2 = dataStore2.runtime.createChannel(ddsId, SharedString.getFactory().type);
 
 				// attach the new data store and dds
 				const dds2Key = "dds2";
@@ -261,8 +257,7 @@ describeCompat(
 					await rehydratedEntryPoint.getSharedObject<ISharedMap>(sharedMapId);
 				const dataStore2Handle: IFluidHandle<TestFluidObject> | undefined =
 					rehydratedRoot.get(dataStore2Key);
-				const dds2Handle: IFluidHandle<ISharedMap> | undefined =
-					rehydratedRoot.get(dds2Key);
+				const dds2Handle: IFluidHandle<ISharedMap> | undefined = rehydratedRoot.get(dds2Key);
 
 				// validate data store
 				assert(dataStore2Handle !== undefined, `handle for [${dataStore2Key}] must exist`);

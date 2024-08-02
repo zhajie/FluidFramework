@@ -11,8 +11,9 @@ export {
 	jsonRoot,
 	jsonSchema,
 	singleJsonCursor,
+	typedJsonCursor,
+	type TypedJsonCompatible,
+	type TypedJsonCompatibleObject,
 } from "./json/index.js";
-
-export { nodeKeyField, nodeKeySchema, nodeKeyTreeSchema } from "./nodeKey/index.js";
 
 export { leaf } from "./leafDomain.js";

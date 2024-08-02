@@ -6,18 +6,18 @@
 import { strict as assert } from "assert";
 
 import { AttachState } from "@fluidframework/container-definitions";
-import { ReferenceType, SlidingPreference } from "@fluidframework/merge-tree";
-import { ISummaryTree } from "@fluidframework/protocol-definitions";
+import { ISummaryTree } from "@fluidframework/driver-definitions";
+import { ReferenceType, SlidingPreference, Side } from "@fluidframework/merge-tree/internal";
 import {
 	MockContainerRuntimeFactory,
 	MockFluidDataStoreRuntime,
 	MockStorage,
-} from "@fluidframework/test-runtime-utils";
+} from "@fluidframework/test-runtime-utils/internal";
 
-import { IIntervalCollection, Side, intervalLocatorFromEndpoint } from "../intervalCollection.js";
+import { IIntervalCollection, intervalLocatorFromEndpoint } from "../intervalCollection.js";
 import { IntervalStickiness, SequenceInterval } from "../intervals/index.js";
 import { SharedStringFactory } from "../sequenceFactory.js";
-import { SharedString } from "../sharedString.js";
+import { SharedStringClass, type ISharedString } from "../sharedString.js";
 
 import { assertSequenceIntervals } from "./intervalTestUtils.js";
 
@@ -25,17 +25,21 @@ async function loadSharedString(
 	containerRuntimeFactory: MockContainerRuntimeFactory,
 	id: string,
 	summary: ISummaryTree,
-): Promise<SharedString> {
+): Promise<ISharedString> {
 	const dataStoreRuntime = new MockFluidDataStoreRuntime();
-	const containerRuntime = containerRuntimeFactory.createContainerRuntime(dataStoreRuntime);
-	dataStoreRuntime.deltaManager.lastSequenceNumber = containerRuntimeFactory.sequenceNumber;
+	containerRuntimeFactory.createContainerRuntime(dataStoreRuntime);
+	dataStoreRuntime.deltaManagerInternal.lastSequenceNumber =
+		containerRuntimeFactory.sequenceNumber;
 	const services = {
 		deltaConnection: dataStoreRuntime.createDeltaConnection(),
 		objectStorage: MockStorage.createFromSummary(summary),
 	};
-	const sharedString = new SharedString(dataStoreRuntime, id, SharedStringFactory.Attributes);
+	const sharedString = new SharedStringClass(
+		dataStoreRuntime,
+		id,
+		SharedStringFactory.Attributes,
+	);
 	await sharedString.load(services);
-	await sharedString.loaded;
 	return sharedString;
 }
 
@@ -51,7 +55,11 @@ async function getSingleIntervalSummary(): Promise<{ summary: ISummaryTree; seq:
 		deltaConnection: dataStoreRuntime.createDeltaConnection(),
 		objectStorage: new MockStorage(),
 	};
-	const sharedString = new SharedString(dataStoreRuntime, "", SharedStringFactory.Attributes);
+	const sharedString = new SharedStringClass(
+		dataStoreRuntime,
+		"",
+		SharedStringFactory.Attributes,
+	);
 	sharedString.initializeLocal();
 	sharedString.connect(services);
 	sharedString.insertText(0, "ABCDEF");
@@ -96,7 +104,9 @@ describe("IntervalCollection snapshotting", () => {
 		assert.equal(intervals.length, 1);
 		const interval = intervals[0] ?? assert.fail();
 		/* eslint-disable no-bitwise */
-		assert(interval.start.refType === (ReferenceType.RangeBegin | ReferenceType.SlideOnRemove));
+		assert(
+			interval.start.refType === (ReferenceType.RangeBegin | ReferenceType.SlideOnRemove),
+		);
 		assert(interval.end.refType === (ReferenceType.RangeEnd | ReferenceType.SlideOnRemove));
 		/* eslint-enable no-bitwise */
 	});
@@ -140,8 +150,8 @@ describe("IntervalCollection snapshotting", () => {
 	});
 
 	describe("enables operations on reload", () => {
-		let sharedString: SharedString;
-		let sharedString2: SharedString;
+		let sharedString: ISharedString;
+		let sharedString2: ISharedString;
 		let collection: IIntervalCollection<SequenceInterval>;
 		let collection2: IIntervalCollection<SequenceInterval>;
 		let id: string;

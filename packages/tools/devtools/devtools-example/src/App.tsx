@@ -18,7 +18,7 @@ import {
 	type SessionStorageModelLoader,
 	SharedStringHelper,
 } from "@fluid-example/example-utils";
-import { type SharedCounter } from "@fluidframework/counter";
+import type { SharedCounter } from "@fluidframework/counter/internal";
 import {
 	type ContainerKey,
 	type HasContainerKey,
@@ -26,9 +26,9 @@ import {
 	type IFluidDevtools,
 	createDevtoolsLogger,
 	initializeDevtools,
-} from "@fluidframework/devtools-core";
-import { type SharedMatrix } from "@fluidframework/matrix";
-import { type SharedString } from "@fluidframework/sequence";
+} from "@fluidframework/devtools-core/internal";
+import type { SharedMatrix } from "@fluidframework/matrix/internal";
+import type { SharedString } from "@fluidframework/sequence/internal";
 import React from "react";
 
 import {
@@ -37,8 +37,8 @@ import {
 	createLoader,
 	loadExistingContainer,
 } from "./ClientUtilities.js";
-import { type IAppModel } from "./Container.js";
-import { type AppData } from "./FluidObject.js";
+import type { IAppModel } from "./Container.js";
+import type { AppData } from "./FluidObject.js";
 import { CounterWidget, EmojiGrid } from "./widgets/index.js";
 
 const sharedContainerKey: ContainerKey = "Shared Container";

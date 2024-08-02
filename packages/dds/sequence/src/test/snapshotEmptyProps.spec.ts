@@ -11,10 +11,10 @@ import {
 	MockContainerRuntimeFactory,
 	MockFluidDataStoreRuntime,
 	MockStorage,
-} from "@fluidframework/test-runtime-utils";
+} from "@fluidframework/test-runtime-utils/internal";
 
-import { SharedStringFactory } from "../sequenceFactory.js";
-import { SharedString } from "../sharedString.js";
+import { SharedStringFactory, type SharedString } from "../sequenceFactory.js";
+import { SharedStringClass } from "../sharedString.js";
 
 import { _dirname } from "./dirname.cjs";
 import { LocationBase } from "./generateSharedStrings.js";
@@ -26,17 +26,23 @@ describe("SharedString Snapshot Version - Empty Props", () => {
 		filebase = path.join(_dirname, `../../${LocationBase}`);
 	});
 
-	async function loadSharedString(id: string, serializedSnapshot: string): Promise<SharedString> {
+	async function loadSharedString(
+		id: string,
+		serializedSnapshot: string,
+	): Promise<SharedString> {
 		const containerRuntimeFactory = new MockContainerRuntimeFactory();
 		const dataStoreRuntime = new MockFluidDataStoreRuntime();
-		const containerRuntime = containerRuntimeFactory.createContainerRuntime(dataStoreRuntime);
+		containerRuntimeFactory.createContainerRuntime(dataStoreRuntime);
 		const services = {
 			deltaConnection: dataStoreRuntime.createDeltaConnection(),
 			objectStorage: new MockStorage(JSON.parse(serializedSnapshot)),
 		};
-		const sharedString = new SharedString(dataStoreRuntime, id, SharedStringFactory.Attributes);
+		const sharedString = new SharedStringClass(
+			dataStoreRuntime,
+			id,
+			SharedStringFactory.Attributes,
+		);
 		await sharedString.load(services);
-		await sharedString.loaded;
 		return sharedString;
 	}
 

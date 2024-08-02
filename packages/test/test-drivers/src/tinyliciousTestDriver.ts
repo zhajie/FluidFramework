@@ -3,17 +3,23 @@
  * Licensed under the MIT License.
  */
 
+import { ITestDriver } from "@fluid-internal/test-driver-definitions";
 import { IRequest } from "@fluidframework/core-interfaces";
-import { IDocumentServiceFactory, IResolvedUrl } from "@fluidframework/driver-definitions/internal";
-import { ITestDriver } from "@fluidframework/test-driver-definitions";
+import {
+	IDocumentServiceFactory,
+	IResolvedUrl,
+} from "@fluidframework/driver-definitions/internal";
 import {
 	InsecureTinyliciousTokenProvider,
 	InsecureTinyliciousUrlResolver,
 	createTinyliciousCreateNewRequest,
 	defaultTinyliciousPort,
-} from "@fluidframework/tinylicious-driver";
+} from "@fluidframework/tinylicious-driver/internal";
 
-import { RouterliciousDriverApi, RouterliciousDriverApiType } from "./routerliciousDriverApi.js";
+import {
+	RouterliciousDriverApi,
+	RouterliciousDriverApiType,
+} from "./routerliciousDriverApi.js";
 
 /**
  * @internal

@@ -4,11 +4,11 @@
  */
 
 import * as assert from "assert";
+import crypto from "crypto";
+import * as path from "path";
 import { AsyncPriorityQueue } from "async";
 import chalk from "chalk";
-import crypto from "crypto";
 import registerDebug from "debug";
-import * as path from "path";
 
 import { defaultLogger } from "../../../common/logging";
 import {
@@ -562,6 +562,14 @@ export abstract class LeafWithFileStatDoneFileTask extends LeafWithDoneFileTask 
 	 * @returns the list of files that this task generates. The files are relative to the package directory.
 	 */
 	protected abstract getOutputFiles(): Promise<string[]>;
+
+	/**
+	 * If this returns true, then the donefile will use the hash of the file contents instead of the last modified time
+	 * and other file stats.
+	 *
+	 * Hashing is roughly 20% slower than the stats-based approach, but is less susceptible to getting invalidated by
+	 * other processes like git touching files but not ultimately changing their contents.
+	 */
 	protected get useHashes(): boolean {
 		return false;
 	}

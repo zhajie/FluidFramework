@@ -3,10 +3,13 @@
  * Licensed under the MIT License.
  */
 
-import { SharedMap, SharedTree } from "fluid-framework";
+import { SharedTree } from "fluid-framework";
+// eslint-disable-next-line import/no-internal-modules
+import { SharedMap } from "fluid-framework/legacy";
 
 export function apisToBundle() {
-	SharedMap.getFactory();
-	SharedMap.create({} as any);
-	SharedTree.getFactory();
+	return {
+		SharedMap,
+		SharedTree,
+	};
 }

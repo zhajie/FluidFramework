@@ -13,7 +13,9 @@ import {
 	type ConnectionMode,
 } from "@fluidframework/protocol-definitions";
 import {
+	createFluidServiceNetworkError,
 	NetworkError,
+	InternalErrorCode,
 	isNetworkError,
 	validateTokenClaims,
 	validateTokenClaimsExpiration,
@@ -35,6 +37,7 @@ import { createRoomJoinMessage, createRuntimeMessage, generateClientId } from ".
 import {
 	getMessageMetadata,
 	handleServerErrorAndConvertToNetworkError,
+	getClientSpecificRoomId,
 	getRoomId,
 	isWriter,
 } from "./utils";
@@ -92,6 +95,9 @@ function composeConnectedMessage(
 		initialMessages: [],
 		initialSignals: [],
 		supportedVersions: ProtocolVersions,
+		supportedFeatures: {
+			submit_signals_v2: true,
+		},
 		version,
 	};
 	return connectedMessage;
@@ -111,7 +117,7 @@ async function connectOrderer(
 	claims: ITokenClaims,
 	version: string,
 	clients: ISignalClient[],
-): Promise<IConnected> {
+): Promise<{ connectedMessage: IConnected; disposeOrdererConnectionListener: () => void }> {
 	const { ordererManager, logger } = lambdaDependencies;
 	const { numberOfMessagesPerTrace } = lambdaSettings;
 	const { expirationTimer, connectionsMap } = lambdaConnectionStateTrackers;
@@ -119,20 +125,42 @@ async function connectOrderer(
 		LumberEventName.ConnectDocumentOrdererConnection,
 		lumberjackProperties,
 	);
-	const orderer = await ordererManager.getOrderer(tenantId, documentId).catch(async (err) => {
-		const errMsg = `Failed to get orderer manager. Error: ${safeStringify(err, undefined, 2)}`;
-		connectDocumentOrdererConnectionMetric.error("Failed to get orderer manager", err);
-		throw handleServerErrorAndConvertToNetworkError(logger, errMsg, documentId, tenantId, err);
+	const orderer = await ordererManager.getOrderer(tenantId, documentId).catch(async (error) => {
+		const errMsg = `Failed to get orderer manager. Error: ${safeStringify(
+			error,
+			undefined,
+			2,
+		)}`;
+		connectDocumentOrdererConnectionMetric.error("Failed to get orderer manager", error);
+		throw handleServerErrorAndConvertToNetworkError(
+			logger,
+			errMsg,
+			documentId,
+			tenantId,
+			error,
+		);
 	});
 
-	const connection = await orderer.connect(socket, clientId, messageClient).catch(async (err) => {
-		const errMsg = `Failed to connect to orderer. Error: ${safeStringify(err, undefined, 2)}`;
-		connectDocumentOrdererConnectionMetric.error("Failed to connect to orderer", err);
-		throw handleServerErrorAndConvertToNetworkError(logger, errMsg, documentId, tenantId, err);
-	});
+	const connection = await orderer
+		.connect(socket, clientId, messageClient)
+		.catch(async (error) => {
+			const errMsg = `Failed to connect to orderer. Error: ${safeStringify(
+				error,
+				undefined,
+				2,
+			)}`;
+			connectDocumentOrdererConnectionMetric.error("Failed to connect to orderer", error);
+			throw handleServerErrorAndConvertToNetworkError(
+				logger,
+				errMsg,
+				documentId,
+				tenantId,
+				error,
+			);
+		});
 
 	// Eventually we will send disconnect reason as headers to client.
-	connection.once("error", (error) => {
+	const connectionErrorListener = (error: unknown): void => {
 		const messageMetaData = getMessageMetadata(connection.documentId, connection.tenantId);
 
 		logger.error(
@@ -146,7 +174,8 @@ async function connectOrderer(
 		);
 		expirationTimer.clear();
 		socket.disconnect(true);
-	});
+	};
+	connection.once("error", connectionErrorListener);
 
 	let clientJoinMessageServerMetadata: any;
 	if (DefaultServiceConfiguration.enableTraces && sampleMessages(numberOfMessagesPerTrace)) {
@@ -154,14 +183,23 @@ async function connectOrderer(
 			connectDocumentStartTime: startTime,
 		};
 	}
-	connection.connect(clientJoinMessageServerMetadata).catch(async (err) => {
+	connection.connect(clientJoinMessageServerMetadata).catch(async (error) => {
 		const errMsg = `Failed to connect to the orderer connection. Error: ${safeStringify(
-			err,
+			error,
 			undefined,
 			2,
 		)}`;
-		connectDocumentOrdererConnectionMetric.error("Failed to establish orderer connection", err);
-		throw handleServerErrorAndConvertToNetworkError(logger, errMsg, documentId, tenantId, err);
+		connectDocumentOrdererConnectionMetric.error(
+			"Failed to establish orderer connection",
+			error,
+		);
+		throw handleServerErrorAndConvertToNetworkError(
+			logger,
+			errMsg,
+			documentId,
+			tenantId,
+			error,
+		);
 	});
 
 	connectionsMap.set(clientId, connection);
@@ -174,7 +212,7 @@ async function connectOrderer(
 
 	connectDocumentOrdererConnectionMetric.success("Successfully established orderer connection");
 
-	return composeConnectedMessage(
+	const connectedMessage = composeConnectedMessage(
 		connection.maxMessageSize,
 		"write",
 		connection.serviceConfiguration.blockSize,
@@ -184,6 +222,13 @@ async function connectOrderer(
 		version,
 		clients,
 	);
+
+	return {
+		connectedMessage,
+		disposeOrdererConnectionListener: (): void => {
+			connection.off("error", connectionErrorListener);
+		},
+	};
 }
 
 function trackSocket(
@@ -192,7 +237,7 @@ function trackSocket(
 	documentId: string,
 	claims: ITokenClaims,
 	{ socketTracker }: INexusLambdaDependencies,
-) {
+): void {
 	// Track socket and tokens for this connection
 	if (socketTracker && claims.jti) {
 		socketTracker.addSocketForToken(
@@ -273,6 +318,40 @@ async function checkToken(
 	}
 }
 
+async function checkClusterDraining(
+	{ clusterDrainingChecker }: INexusLambdaDependencies,
+	message: IConnect,
+	properties: Record<string, any>,
+): Promise<void> {
+	if (!clusterDrainingChecker) {
+		return;
+	}
+	let clusterInDraining = false;
+	try {
+		clusterInDraining = await clusterDrainingChecker.isClusterDraining();
+	} catch (error) {
+		Lumberjack.error(
+			"Failed to get cluster draining status. Will allow requests to proceed.",
+			properties,
+			error,
+		);
+		clusterInDraining = false;
+	}
+
+	if (clusterInDraining) {
+		// TODO: add a new error class
+		Lumberjack.info("Reject connect document request because cluster is draining.", {
+			...properties,
+			tenantId: message.tenantId,
+		});
+		const error = createFluidServiceNetworkError(503, {
+			message: "Cluster is not available. Please retry later.",
+			internalErrorCode: InternalErrorCode.ClusterDraining,
+		});
+		throw error;
+	}
+}
+
 async function joinRoomAndSubscribeToChannel(
 	socket: IWebSocket,
 	tenantId: string,
@@ -288,15 +367,24 @@ async function joinRoomAndSubscribeToChannel(
 
 	try {
 		// Subscribe to channels.
-		await Promise.all([socket.join(getRoomId(room)), socket.join(`client#${clientId}`)]);
+		await Promise.all([
+			socket.join(getRoomId(room)),
+			socket.join(getClientSpecificRoomId(clientId)),
+		]);
 		return [clientId, room];
-	} catch (err) {
+	} catch (error) {
 		const errMsg = `Could not subscribe to channels. Error: ${safeStringify(
-			err,
+			error,
 			undefined,
 			2,
 		)}`;
-		throw handleServerErrorAndConvertToNetworkError(logger, errMsg, documentId, tenantId, err);
+		throw handleServerErrorAndConvertToNetworkError(
+			logger,
+			errMsg,
+			documentId,
+			tenantId,
+			error,
+		);
 	}
 }
 
@@ -317,18 +405,18 @@ async function retrieveClients(
 			connectDocumentGetClientsMetric.success("Successfully got clients from client manager");
 			return response;
 		})
-		.catch(async (err) => {
-			const errMsg = `Failed to get clients. Error: ${safeStringify(err, undefined, 2)}`;
+		.catch(async (error) => {
+			const errMsg = `Failed to get clients. Error: ${safeStringify(error, undefined, 2)}`;
 			connectDocumentGetClientsMetric.error(
 				"Failed to get clients during connectDocument",
-				err,
+				error,
 			);
 			throw handleServerErrorAndConvertToNetworkError(
 				logger,
 				errMsg,
 				documentId,
 				tenantId,
-				err,
+				error,
 			);
 		});
 
@@ -351,7 +439,13 @@ function createMessageClientAndJoinRoom(
 	room: IRoom,
 	clientId: string,
 	connectedTimestamp: number,
-	{ connectionTimeMap, scopeMap, roomMap }: INexusLambdaConnectionStateTrackers,
+	supportedFeatures: Record<string, unknown> | undefined,
+	{
+		connectionTimeMap,
+		scopeMap,
+		roomMap,
+		supportedFeaturesMap,
+	}: INexusLambdaConnectionStateTrackers,
 ): Partial<IClient> {
 	// Todo should all the client details come from the claims???
 	// we are still trusting the users permissions and type here.
@@ -379,6 +473,9 @@ function createMessageClientAndJoinRoom(
 	// Join the room to receive signals.
 	roomMap.set(clientId, room);
 
+	// Store the supported features for the client
+	supportedFeaturesMap.set(clientId, supportedFeatures ?? {});
+
 	return messageClient;
 }
 
@@ -389,7 +486,7 @@ async function addMessageClientToClientManager(
 	messageClient: Partial<IClient>,
 	metricProperties: { clientId: string; tenantId: string; documentId: string },
 	{ clientManager, logger }: INexusLambdaDependencies,
-) {
+): Promise<void> {
 	const connectDocumentAddClientMetric = Lumberjack.newLumberMetric(
 		LumberEventName.ConnectDocumentAddClient,
 		metricProperties,
@@ -397,59 +494,69 @@ async function addMessageClientToClientManager(
 	try {
 		await clientManager.addClient(tenantId, documentId, clientId, messageClient as IClient);
 		connectDocumentAddClientMetric.success("Successfully added client");
-	} catch (err) {
-		const errMsg = `Could not add client. Error: ${safeStringify(err, undefined, 2)}`;
-		connectDocumentAddClientMetric.error("Error adding client during connectDocument", err);
-		throw handleServerErrorAndConvertToNetworkError(logger, errMsg, documentId, tenantId, err);
+	} catch (error) {
+		const errMsg = `Could not add client. Error: ${safeStringify(error, undefined, 2)}`;
+		connectDocumentAddClientMetric.error("Error adding client during connectDocument", error);
+		throw handleServerErrorAndConvertToNetworkError(
+			logger,
+			errMsg,
+			documentId,
+			tenantId,
+			error,
+		);
 	}
 }
 
+/**
+ * Sets up a listener for broadcast signals from external API and broadcasts them to the room.
+ *
+ * @param socket - Websocket instance
+ * @param room - Current room
+ * @param lambdaDependencies - Lambda dependencies including collaborationSessionEventEmitter and logger
+ * @returns Dispose function to remove the added listener
+ */
 function setUpSignalListenerForRoomBroadcasting(
 	socket: IWebSocket,
 	room: IRoom,
-	documentId: string,
-	tenantId: string,
 	{ collaborationSessionEventEmitter, logger }: INexusLambdaDependencies,
-) {
-	collaborationSessionEventEmitter?.on(
-		"broadcastSignal",
-		// eslint-disable-next-line @typescript-eslint/no-misused-promises
-		async (broadcastSignal: IBroadcastSignalEventPayload) => {
-			const { signalRoom, signalContent } = broadcastSignal;
+): () => void {
+	const broadCastSignalListener = (broadcastSignal: IBroadcastSignalEventPayload): void => {
+		const { signalRoom, signalContent } = broadcastSignal;
 
-			// No-op if the room (collab session) that signal came in from is different
-			// than the current room. We reuse websockets so there could be multiple rooms
-			// that we are sending the signal to, and we don't want to do that.
-			if (
-				signalRoom.documentId === room.documentId &&
-				signalRoom.tenantId === room.tenantId
-			) {
+		// No-op if the room (collab session) that signal came in from is different
+		// than the current room. We reuse websockets so there could be multiple rooms
+		// that we are sending the signal to, and we don't want to do that.
+		if (signalRoom.documentId === room.documentId && signalRoom.tenantId === room.tenantId) {
+			try {
+				const runtimeMessage = createRuntimeMessage(signalContent);
+
 				try {
-					const runtimeMessage = createRuntimeMessage(signalContent);
-
-					socket
-						.emitToRoom(getRoomId(signalRoom), "signal", runtimeMessage)
-						.catch((error: any) => {
-							const errorMsg = `Failed to broadcast signal from external API.`;
-							Lumberjack.error(
-								errorMsg,
-								getLumberBaseProperties(signalRoom.documentId, signalRoom.tenantId),
-								error,
-							);
-						});
+					socket.emitToRoom(getRoomId(signalRoom), "signal", runtimeMessage);
 				} catch (error) {
-					const errorMsg = `broadcast-signal content body is malformed`;
-					throw handleServerErrorAndConvertToNetworkError(
-						logger,
+					const errorMsg = `Failed to broadcast signal from external API.`;
+					Lumberjack.error(
 						errorMsg,
-						documentId,
-						tenantId,
+						getLumberBaseProperties(signalRoom.documentId, signalRoom.tenantId),
 						error,
 					);
 				}
+			} catch (error) {
+				const errorMsg = `broadcast-signal content body is malformed`;
+				throw handleServerErrorAndConvertToNetworkError(
+					logger,
+					errorMsg,
+					room.documentId,
+					room.tenantId,
+					error,
+				);
 			}
-		},
-	);
+		}
+	};
+	collaborationSessionEventEmitter?.on("broadcastSignal", broadCastSignalListener);
+	const disposeBroadcastSignalListener = (): void => {
+		collaborationSessionEventEmitter?.off("broadcastSignal", broadCastSignalListener);
+	};
+	return disposeBroadcastSignalListener;
 }
 
 export async function connectDocument(
@@ -487,6 +594,8 @@ export async function connectDocument(
 		documentId = claims.documentId;
 		connectionTrace.stampStage(ConnectDocumentStage.TokenVerified);
 
+		await checkClusterDraining(lambdaDependencies, message, properties);
+
 		const [clientId, room] = await joinRoomAndSubscribeToChannel(
 			socket,
 			tenantId,
@@ -516,6 +625,7 @@ export async function connectDocument(
 			room,
 			clientId,
 			connectedTimestamp,
+			message.supportedFeatures,
 			lambdaConnectionStateTrackers,
 		);
 		connectionTrace.stampStage(ConnectDocumentStage.MessageClientCreated);
@@ -538,7 +648,7 @@ export async function connectDocument(
 
 		const isWriterClient = isWriter(messageClient.scopes ?? [], message.mode);
 		connectMetric.setProperty("IsWriterClient", isWriterClient);
-		const connectedMessage = isWriterClient
+		const { connectedMessage, disposeOrdererConnectionListener } = isWriterClient
 			? await connectOrderer(
 					socket,
 					subMetricProperties,
@@ -554,16 +664,19 @@ export async function connectDocument(
 					version,
 					clients,
 			  )
-			: composeConnectedMessage(
-					1024 /* messageSize */,
-					"read",
-					DefaultServiceConfiguration.blockSize,
-					DefaultServiceConfiguration.maxMessageSize,
-					clientId,
-					claims,
-					version,
-					clients,
-			  );
+			: {
+					connectedMessage: composeConnectedMessage(
+						1024 /* messageSize */,
+						"read",
+						DefaultServiceConfiguration.blockSize,
+						DefaultServiceConfiguration.maxMessageSize,
+						clientId,
+						claims,
+						version,
+						clients,
+					),
+					disposeOrdererConnectionListener: (): void => {},
+			  };
 		// back-compat: remove cast to any once new definition of IConnected comes through.
 		(connectedMessage as any).timestamp = connectedTimestamp;
 		connectionTrace.stampStage(ConnectDocumentStage.MessageClientConnected);
@@ -571,11 +684,9 @@ export async function connectDocument(
 		trackSocket(socket, tenantId, documentId, claims, lambdaDependencies);
 		connectionTrace.stampStage(ConnectDocumentStage.SocketTrackerAppended);
 
-		setUpSignalListenerForRoomBroadcasting(
+		const disposeSignalListenerForRoomBroadcasting = setUpSignalListenerForRoomBroadcasting(
 			socket,
 			room,
-			documentId,
-			tenantId,
 			lambdaDependencies,
 		);
 		connectionTrace.stampStage(ConnectDocumentStage.SignalListenerSetUp);
@@ -603,19 +714,29 @@ export async function connectDocument(
 			connection: connectedMessage,
 			connectVersions,
 			details: messageClient as IClient,
+			dispose: (): void => {
+				disposeSignalListenerForRoomBroadcasting();
+				disposeOrdererConnectionListener();
+			},
 		};
-	} catch (err) {
-		uncaughtError = err;
-		throw err;
+	} catch (error) {
+		uncaughtError = error;
+		throw error;
 	} finally {
 		connectMetric.setProperty("connectTrace", connectionTrace);
-		if (!uncaughtError) {
-			connectMetric.success(`Connect document successful`);
-		} else {
+		if (uncaughtError) {
 			if (uncaughtError.code !== undefined) {
 				connectMetric.setProperty(CommonProperties.errorCode, uncaughtError.code);
 			}
+			if (uncaughtError.internalErrorCode !== undefined) {
+				connectMetric.setProperty(
+					CommonProperties.internalErrorCode,
+					uncaughtError.internalErrorCode,
+				);
+			}
 			connectMetric.error(`Connect document failed`, uncaughtError);
+		} else {
+			connectMetric.success(`Connect document successful`);
 		}
 	}
 }

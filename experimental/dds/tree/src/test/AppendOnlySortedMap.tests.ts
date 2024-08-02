@@ -7,7 +7,7 @@
 
 import { strict as assert } from 'assert';
 
-import { validateAssertionError } from '@fluidframework/test-runtime-utils';
+import { validateAssertionError } from '@fluidframework/test-runtime-utils/internal';
 import { expect } from 'chai';
 
 import { assertNotUndefined, compareFiniteNumbers } from '../Common.js';
@@ -189,11 +189,7 @@ describe('AppendOnlySortedMap', () => {
 
 describe('AppendOnlyDoublySortedMap', () => {
 	const mapBuilder = () =>
-		new AppendOnlyDoublySortedMap<number, number, number>(
-			compareFiniteNumbers,
-			(value) => value,
-			compareFiniteNumbers
-		);
+		new AppendOnlyDoublySortedMap<number, number, number>(compareFiniteNumbers, (value) => value, compareFiniteNumbers);
 	runAppendOnlyMapTests(mapBuilder);
 
 	it('detects out-of-order values', () => {

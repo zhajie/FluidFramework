@@ -10,12 +10,15 @@ import {
 	createRuntimeAttributor,
 	enableOnNewFileKey,
 } from "@fluid-experimental/attributor";
-import { describeCompat, itSkipsFailureOnSpecificDrivers } from "@fluid-private/test-version-utils";
+import {
+	describeCompat,
+	itSkipsFailureOnSpecificDrivers,
+} from "@fluid-private/test-version-utils";
 import { IContainer, IFluidCodeDetails } from "@fluidframework/container-definitions/internal";
 import { ConfigTypes, IConfigProviderBase } from "@fluidframework/core-interfaces";
-import { createInsertOnlyAttributionPolicy } from "@fluidframework/merge-tree";
-import { AttributionInfo } from "@fluidframework/runtime-definitions";
-import type { SharedString } from "@fluidframework/sequence";
+import { createInsertOnlyAttributionPolicy } from "@fluidframework/merge-tree/internal";
+import { AttributionInfo } from "@fluidframework/runtime-definitions/internal";
+import type { SharedString } from "@fluidframework/sequence/internal";
 import {
 	ChannelFactoryRegistry,
 	DataObjectFactoryType,
@@ -23,7 +26,7 @@ import {
 	ITestFluidObject,
 	ITestObjectProvider,
 	getContainerEntryPointBackCompat,
-} from "@fluidframework/test-utils";
+} from "@fluidframework/test-utils/internal";
 
 const stringId = "sharedStringKey";
 
@@ -138,7 +141,8 @@ describeCompat("Attributor", "NoCompat", (getTestObjectProvider, apis) => {
 			const attributor = createRuntimeAttributor();
 			const container1 = await provider.makeTestContainer(getTestConfig(attributor));
 			const sharedString1 = await sharedStringFromContainer(container1);
-			const container2 = await provider.loadTestContainer(testContainerConfig);
+			const attributor2 = createRuntimeAttributor();
+			const container2 = await provider.loadTestContainer(getTestConfig(attributor2));
 			const sharedString2 = await sharedStringFromContainer(container2);
 
 			const text = "client 1";
@@ -157,6 +161,12 @@ describeCompat("Attributor", "NoCompat", (getTestObjectProvider, apis) => {
 				user: container1.audience.getMember(container2.clientId)?.user,
 			});
 			assertAttributionMatches(sharedString1, 13, attributor, {
+				user: container1.audience.getMember(container1.clientId)?.user,
+			});
+			assertAttributionMatches(sharedString2, 3, attributor2, {
+				user: container1.audience.getMember(container2.clientId)?.user,
+			});
+			assertAttributionMatches(sharedString2, 13, attributor2, {
 				user: container1.audience.getMember(container1.clientId)?.user,
 			});
 		},

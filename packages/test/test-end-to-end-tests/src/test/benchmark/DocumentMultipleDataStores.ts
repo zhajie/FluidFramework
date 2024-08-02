@@ -13,23 +13,26 @@ import {
 	ContainerRuntimeFactoryWithDefaultDataStore,
 	DataObject,
 	DataObjectFactory,
-} from "@fluidframework/aqueduct";
+} from "@fluidframework/aqueduct/internal";
 import { IContainer, LoaderHeader } from "@fluidframework/container-definitions/internal";
 import {
 	ContainerRuntime,
 	IContainerRuntimeOptions,
 	ISummarizer,
-} from "@fluidframework/container-runtime";
+} from "@fluidframework/container-runtime/internal";
 import {
 	ConfigTypes,
 	IConfigProviderBase,
 	IFluidHandle,
 	IRequest,
 } from "@fluidframework/core-interfaces";
-import { type ISharedMap, SharedMap } from "@fluidframework/map";
-import { SharedString } from "@fluidframework/sequence";
-import { ITelemetryLoggerExt } from "@fluidframework/telemetry-utils";
-import { createSummarizerFromFactory, summarizeNow } from "@fluidframework/test-utils";
+import { type ISharedMap, SharedMap } from "@fluidframework/map/internal";
+import { SharedString } from "@fluidframework/sequence/internal";
+import { ITelemetryLoggerExt } from "@fluidframework/telemetry-utils/internal";
+import {
+	createSummarizerFromFactory,
+	summarizeNow,
+} from "@fluidframework/test-utils/internal";
 
 import {
 	IDocumentLoaderAndSummarizer,
@@ -144,9 +147,7 @@ export class DocumentMultipleDds implements IDocumentLoaderAndSummarizer {
 		const totalIterations = this.numberDataStoreCounts / this.dsCountsPerIteration;
 		for (let i = 0; i < totalIterations; i++) {
 			for (let j = 0; j < this.dsCountsPerIteration; j++) {
-				const dataStore = await this.dataObjectFactory.createInstance(
-					this.containerRuntime,
-				);
+				const dataStore = await this.dataObjectFactory.createInstance(this.containerRuntime);
 				this.mainDataStore._root.set(`dataStore${j}`, dataStore.handle);
 			}
 			await this.waitForContainerSave(this._mainContainer);
@@ -187,8 +188,7 @@ export class DocumentMultipleDds implements IDocumentLoaderAndSummarizer {
 		switch (this.props.documentType) {
 			case "DocumentMultipleDataStores":
 				this.numberDataStoreCounts = this.props.documentTypeInfo.numberDataStores;
-				this.dsCountsPerIteration =
-					this.props.documentTypeInfo.numberDataStoresPerIteration;
+				this.dsCountsPerIteration = this.props.documentTypeInfo.numberDataStoresPerIteration;
 				break;
 			default:
 				throw new Error("Invalid document type");

@@ -3,8 +3,8 @@
  * Licensed under the MIT License.
  */
 
-import { type ITelemetryBaseLogger } from "@fluidframework/core-interfaces";
-import type { IMessageRelay } from "@fluidframework/devtools-core";
+import type { ITelemetryBaseLogger } from "@fluidframework/core-interfaces";
+import type { IMessageRelay } from "@fluidframework/devtools-core/internal";
 import React from "react";
 
 import { DevtoolsView } from "./DevtoolsView.js";

@@ -13,6 +13,7 @@ import {
 	makeRandom,
 	performFuzzActionsAsync as performFuzzActionsBase,
 	takeAsync as take,
+	type SaveInfo,
 } from '@fluid-private/stochastic-test-utils';
 import { expect } from 'chai';
 
@@ -49,12 +50,16 @@ export async function performFuzzActions(
 	generator: AsyncGenerator<Operation, FuzzTestState>,
 	seed: number,
 	synchronizeAtEnd: boolean = true,
-	saveInfo?: { saveAt?: number; saveOnFailure: boolean; filepath: string }
+	saveInfo?: SaveInfo
 ): Promise<Required<FuzzTestState>> {
 	const random = makeRandom(seed);
 
 	// Note: the direct fields of `state` aren't mutated, but it is mutated transitively.
-	const initialState: FuzzTestState = { random, passiveCollaborators: [], activeCollaborators: [] };
+	const initialState: FuzzTestState = {
+		random,
+		passiveCollaborators: [],
+		activeCollaborators: [],
+	};
 	const finalState = await performFuzzActionsBase(
 		generator,
 		{
@@ -71,7 +76,10 @@ export async function performFuzzActions(
 					summarizeHistory,
 					testObjectProvider: state.testObjectProvider,
 				});
-				(isObserver ? state.passiveCollaborators : state.activeCollaborators).push({ container, tree });
+				(isObserver ? state.passiveCollaborators : state.activeCollaborators).push({
+					container,
+					tree,
+				});
 				return { ...state, testObjectProvider };
 			},
 			leave: async (state, operation) => {
@@ -128,14 +136,11 @@ export async function performFuzzActions(
 							expect(editA).to.not.be.undefined;
 							expect(editA?.id).to.equal(editB?.id);
 						}
-						expect(areRevisionViewsSemanticallyEqual(tree.currentView, tree, first.currentView, first)).to
-							.be.true;
+						expect(areRevisionViewsSemanticallyEqual(tree.currentView, tree, first.currentView, first)).to.be.true;
 
 						for (const node of tree.currentView) {
 							expect(tree.attributeNodeId(node.identifier)).to.equal(
-								first.attributeNodeId(
-									first.convertToNodeId(tree.convertToStableNodeId(node.identifier))
-								)
+								first.attributeNodeId(first.convertToNodeId(tree.convertToStableNodeId(node.identifier)))
 							);
 						}
 					}
@@ -150,7 +155,7 @@ export async function performFuzzActions(
 	if (synchronizeAtEnd) {
 		if (finalState.testObjectProvider !== undefined) {
 			await finalState.testObjectProvider.ensureSynchronized();
-			const events = finalState.testObjectProvider.logger.reportAndClearTrackedEvents();
+			const events = finalState.testObjectProvider.tracker.reportAndClearTrackedEvents();
 			expect(events.expectedNotFound.length).to.equal(0);
 			for (const event of events.unexpectedErrors) {
 				switch (event.eventName) {
@@ -191,9 +196,12 @@ export function runSharedTreeFuzzTests(title: string): void {
 			saveOnFailure?: boolean
 		): void {
 			it(`with seed ${seed}`, async () => {
-				const saveInfo =
-					saveOnFailure !== undefined
-						? { filepath: join(directory, `test-history-${seed}.json`), saveOnFailure }
+				const saveInfo: SaveInfo | undefined =
+					saveOnFailure === true
+						? {
+								saveOnFailure: { path: join(directory, `test-history-${seed}.json`) },
+								saveOnSuccess: false,
+							}
 						: undefined;
 				if (saveInfo !== undefined && !existsSync(directory)) {
 					mkdirSync(directory);
@@ -206,8 +214,7 @@ export function runSharedTreeFuzzTests(title: string): void {
 			describe('using 0.0.2 and 0.1.1 trees', () => {
 				for (let seed = 0; seed < testsPerSuite; seed++) {
 					runTest(
-						() =>
-							take(testLength, makeOpGenerator({ joinConfig: { summarizeHistory: [summarizeHistory] } })),
+						() => take(testLength, makeOpGenerator({ joinConfig: { summarizeHistory: [summarizeHistory] } })),
 						seed
 					);
 				}

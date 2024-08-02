@@ -5,9 +5,13 @@
 
 import { strict as assert } from "assert";
 
-import { IDirectory, type ISharedDirectory, SharedDirectory } from "@fluidframework/map/internal";
-import { IFluidDataStoreContext } from "@fluidframework/runtime-definitions";
-import { MockFluidDataStoreRuntime } from "@fluidframework/test-runtime-utils";
+import {
+	IDirectory,
+	type ISharedDirectory,
+	SharedDirectory,
+} from "@fluidframework/map/internal";
+import { IFluidDataStoreContext } from "@fluidframework/runtime-definitions/internal";
+import { MockFluidDataStoreRuntime } from "@fluidframework/test-runtime-utils/internal";
 
 import { createDirectoryWithInterception } from "../map/index.js";
 
@@ -97,8 +101,10 @@ describe("Shared Directory with Interception", () => {
 		}
 
 		beforeEach(() => {
-			const dataStoreRuntime = new MockFluidDataStoreRuntime();
-			sharedDirectory = SharedDirectory.getFactory().create(dataStoreRuntime, documentId);
+			const dataStoreRuntime = new MockFluidDataStoreRuntime({
+				registry: [SharedDirectory.getFactory()],
+			});
+			sharedDirectory = SharedDirectory.create(dataStoreRuntime, documentId);
 
 			// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 			dataStoreContext = {

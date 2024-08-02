@@ -3,8 +3,11 @@
  * Licensed under the MIT License.
  */
 
-import { ISequencedDocumentMessage } from "@fluidframework/protocol-definitions";
-import { createChildLogger, raiseConnectedEvent } from "@fluidframework/telemetry-utils";
+import { ISequencedDocumentMessage } from "@fluidframework/driver-definitions/internal";
+import {
+	createChildLogger,
+	raiseConnectedEvent,
+} from "@fluidframework/telemetry-utils/internal";
 import { v4 as uuid } from "uuid";
 
 import {
@@ -17,6 +20,7 @@ import {
 
 /**
  * Specialized implementation of MockContainerRuntime for testing ops during reconnection.
+ * @legacy
  * @alpha
  */
 export class MockContainerRuntimeForReconnection extends MockContainerRuntime {
@@ -46,8 +50,7 @@ export class MockContainerRuntimeForReconnection extends MockContainerRuntime {
 				this.process(remoteMessage);
 			}
 			this.pendingRemoteMessages.length = 0;
-			// ! TODO AB#7512
-			this.deltaManager.clientSequenceNumber = -1;
+			this.deltaManager.clientSequenceNumber = 0;
 			// We should get a new clientId on reconnection.
 			this.clientId = uuid();
 			// Update the clientId in FluidDataStoreRuntime.
@@ -61,6 +64,14 @@ export class MockContainerRuntimeForReconnection extends MockContainerRuntime {
 			// On disconnection, clear any outstanding messages for this client because it will be resent.
 			this.factory.clearOutstandingClientMessages(this.clientId);
 			this.factory.quorum.removeMember(this.clientId);
+			for (const message of this.outbox) {
+				this.addPendingMessage(
+					message.content,
+					message.localOpMetadata,
+					++this.deltaManager.clientSequenceNumber,
+				);
+			}
+			this.outbox.length = 0;
 		}
 
 		// Let the DDSes know that the connection state changed.
@@ -103,8 +114,7 @@ export class MockContainerRuntimeForReconnection extends MockContainerRuntime {
 	public async initializeWithStashedOps(
 		fromContainerRuntime: MockContainerRuntimeForReconnection,
 	) {
-		// ! TODO AB#7512
-		if (this.pendingMessages.length !== 0 || this.deltaManager.clientSequenceNumber !== -1) {
+		if (this.pendingMessages.length !== 0 || this.deltaManager.clientSequenceNumber !== 0) {
 			throw new Error("applyStashedOps must be called first, and once.");
 		}
 
@@ -140,8 +150,8 @@ export class MockContainerRuntimeForReconnection extends MockContainerRuntime {
 			refSeq = 0;
 		}
 		if (
-			this.dataStoreRuntime.deltaManager.lastSequenceNumber !== refSeq ||
-			this.dataStoreRuntime.deltaManager.minimumSequenceNumber !== refSeq
+			this.dataStoreRuntime.deltaManagerInternal.lastSequenceNumber !== refSeq ||
+			this.dataStoreRuntime.deltaManagerInternal.minimumSequenceNumber !== refSeq
 		) {
 			throw new Error(
 				"computed min and ref seq don't match the loaded values; this indicates a bad load, or missing messages",
@@ -176,11 +186,13 @@ export class MockContainerRuntimeForReconnection extends MockContainerRuntime {
 			}
 			stashedOps.delete(seq);
 		};
-		await applyStashedOpsAtSeq(this.dataStoreRuntime.deltaManager.lastSequenceNumber);
+		await applyStashedOpsAtSeq(this.dataStoreRuntime.deltaManagerInternal.lastSequenceNumber);
 		// apply the saved and pending ops
 		for (const savedOp of remoteOps) {
 			this.process(savedOp);
-			await applyStashedOpsAtSeq(this.dataStoreRuntime.deltaManager.lastSequenceNumber);
+			await applyStashedOpsAtSeq(
+				this.dataStoreRuntime.deltaManagerInternal.lastSequenceNumber,
+			);
 		}
 		if (stashedOps.size !== 0) {
 			throw new Error("There should be no pending message after saved ops are processed");
@@ -193,6 +205,7 @@ export class MockContainerRuntimeForReconnection extends MockContainerRuntime {
 
 /**
  * Specialized implementation of MockContainerRuntimeFactory for testing ops during reconnection.
+ * @legacy
  * @alpha
  */
 export class MockContainerRuntimeFactoryForReconnection extends MockContainerRuntimeFactory {

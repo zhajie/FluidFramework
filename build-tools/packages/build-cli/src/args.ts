@@ -5,13 +5,15 @@
 
 import { MonoRepo, Package } from "@fluidframework/build-tools";
 import { Args } from "@oclif/core";
+import { PackageName } from "@rushstack/node-core-library";
 // eslint-disable-next-line import/no-deprecated
-import { Context, isMonoRepoKind } from "./library";
+import { Context, isMonoRepoKind } from "./library/index.js";
 
 /**
- * A re-usable CLI argument for package or release group names.
+ * Creates a CLI argument for package or release group names. It's a factory function so that commands can override the
+ * properties more easily when using the argument.
  */
-export const packageOrReleaseGroupArg = Args.string({
+export const packageOrReleaseGroupArg = Args.custom({
 	name: "package_or_release_group",
 	required: true,
 	description: "The name of a package or a release group.",
@@ -32,6 +34,6 @@ export const findPackageOrReleaseGroup = (
 
 	return (
 		context.fullPackageMap.get(name) ??
-		context.independentPackages.find((pkg) => pkg.nameUnscoped === name)
+		context.independentPackages.find((pkg) => PackageName.getUnscopedName(pkg.name) === name)
 	);
 };

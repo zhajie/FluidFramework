@@ -6,13 +6,13 @@
 import { strict as assert } from "assert";
 
 import {
-	FieldKindIdentifier,
+	type FieldKindIdentifier,
 	MapNodeStoredSchema,
-	MutableTreeStoredSchema,
+	type MutableTreeStoredSchema,
 	ObjectNodeStoredSchema,
-	TreeFieldStoredSchema,
-	TreeNodeSchemaIdentifier,
-	TreeNodeStoredSchema,
+	type TreeFieldStoredSchema,
+	type TreeNodeSchemaIdentifier,
+	type TreeNodeStoredSchema,
 	TreeStoredSchemaRepository,
 	storedEmptyFieldSchema,
 } from "../../../core/index.js";
@@ -34,14 +34,13 @@ const emptyMap: ReadonlyMap<never, never> = new Map<never, never>();
 
 /**
  * Helper for building {@link TreeFieldStoredSchema}.
- * @internal
  */
 function fieldSchema(
 	kind: { identifier: FieldKindIdentifier },
 	types?: Iterable<TreeNodeSchemaIdentifier>,
 ): TreeFieldStoredSchema {
 	return {
-		kind,
+		kind: kind.identifier,
 		types: types === undefined ? undefined : new Set(types),
 	};
 }

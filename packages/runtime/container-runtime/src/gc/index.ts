@@ -11,8 +11,6 @@ export {
 	defaultSessionExpiryDurationMs,
 	GCNodeType,
 	gcTestModeKey,
-	gcDisableDataStoreSweepOptionName,
-	gcDisableThrowOnTombstoneLoadOptionName,
 	gcGenerationOptionName,
 	GCFeatureMatrix,
 	GCVersion,
@@ -23,21 +21,18 @@ export {
 	IGarbageCollectorCreateParams,
 	IGCMetadata,
 	IGCMetadata_Deprecated,
+	IGCNodeUpdatedProps,
 	IGCResult,
 	IGCRuntimeOptions,
 	IMarkPhaseStats,
 	ISweepPhaseStats,
 	IGCStats,
 	oneDayMs,
-	runGCKey,
 	runSessionExpiryKey,
-	runSweepKey,
 	stableGCVersion,
 	disableAutoRecoveryKey,
-	disableDatastoreSweepKey,
-	detectOutboundRoutesViaDDSKey,
 	UnreferencedState,
-	throwOnTombstoneLoadOverrideKey,
+	disableThrowOnTombstoneLoadKey,
 	GarbageCollectionMessage,
 	GarbageCollectionMessageType,
 	ISweepMessage,
@@ -46,8 +41,8 @@ export {
 	cloneGCData,
 	concatGarbageCollectionStates,
 	getGCVersionInEffect,
-	trimLeadingAndTrailingSlashes,
 	unpackChildNodesGCDetails,
+	urlToGCNodePath,
 } from "./gcHelpers.js";
 export { runGarbageCollection } from "./gcReferenceGraphAlgorithm.js";
 export {
@@ -61,5 +56,5 @@ export {
 	GCSummaryStateTracker,
 	IGCSummaryTrackingData,
 } from "./gcSummaryStateTracker.js";
-export { GCTelemetryTracker, sendGCUnexpectedUsageEvent } from "./gcTelemetry.js";
+export { GCTelemetryTracker } from "./gcTelemetry.js";
 export { UnreferencedStateTracker } from "./gcUnreferencedStateTracker.js";

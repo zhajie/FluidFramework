@@ -5,15 +5,18 @@
 
 import http from "http";
 
-import { unreachableCase } from "@fluidframework/core-utils";
-import { TestDriverTypes } from "@fluidframework/test-driver-definitions";
+import { TestDriverTypes } from "@fluid-internal/test-driver-definitions";
+import { unreachableCase } from "@fluidframework/core-utils/internal";
 import Agent from "agentkeepalive";
 
 import { LocalDriverApi, LocalDriverApiType } from "./localDriverApi.js";
 import { LocalServerTestDriver } from "./localServerTestDriver.js";
 import { OdspDriverApi, OdspDriverApiType } from "./odspDriverApi.js";
 import { OdspTestDriver } from "./odspTestDriver.js";
-import { RouterliciousDriverApi, RouterliciousDriverApiType } from "./routerliciousDriverApi.js";
+import {
+	RouterliciousDriverApi,
+	RouterliciousDriverApiType,
+} from "./routerliciousDriverApi.js";
 import { RouterliciousTestDriver } from "./routerliciousTestDriver.js";
 import { TinyliciousTestDriver } from "./tinyliciousTestDriver.js";
 
@@ -46,12 +49,8 @@ http.globalAgent = new Agent();
 /**
  * @internal
  */
-export type CreateFromEnvConfigParam<T extends (config: any, ...args: any) => any> = T extends (
-	config: infer P,
-	...args: any
-) => any
-	? P
-	: never;
+export type CreateFromEnvConfigParam<T extends (config: any, ...args: any) => any> =
+	T extends (config: infer P, ...args: any) => any ? P : never;
 
 /**
  * @internal

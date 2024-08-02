@@ -18,16 +18,16 @@
  * @packageDocumentation
  */
 
-import { type IContainer } from "@fluidframework/container-definitions/internal";
-import { type IDisposable } from "@fluidframework/core-interfaces";
+import type { IContainer } from "@fluidframework/container-definitions/internal";
+import type { IDisposable, IFluidLoadable } from "@fluidframework/core-interfaces";
 import {
 	type ContainerDevtoolsProps as ContainerDevtoolsPropsBase,
 	type HasContainerKey,
 	type IFluidDevtools as IDevtoolsBase,
 	type IDevtoolsLogger,
 	initializeDevtools as initializeDevtoolsBase,
-} from "@fluidframework/devtools-core";
-import { type IFluidContainer } from "@fluidframework/fluid-static";
+} from "@fluidframework/devtools-core/internal";
+import type { IFluidContainer } from "@fluidframework/fluid-static";
 
 /**
  * Properties for configuring {@link IDevtools}.
@@ -186,7 +186,7 @@ function mapContainerProps(
 	return {
 		container: innerContainer,
 		containerKey,
-		containerData: container.initialObjects,
+		containerData: container.initialObjects as Record<string, IFluidLoadable>,
 	};
 }
 
@@ -194,5 +194,9 @@ function mapContainerProps(
 // so consumers don't need to import from this one *and* devtools-core.
 // DevtoolsLogger is necessary for consumers to set up Devtools.
 // ContainerDevtoolsProps extends HasContainerKey, so it needs ContainerKey.
-export { type ContainerKey, type HasContainerKey } from "@fluidframework/devtools-core";
-export { createDevtoolsLogger, type IDevtoolsLogger } from "@fluidframework/devtools-core";
+export {
+	type ContainerKey,
+	type HasContainerKey,
+	createDevtoolsLogger,
+	type IDevtoolsLogger,
+} from "@fluidframework/devtools-core/internal";

@@ -3,17 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import { delay } from "@fluidframework/core-utils";
+import { delay } from "@fluidframework/core-utils/internal";
 import {
 	CloseContainer,
 	TelemetryEvent,
 	devtoolsMessageSource,
-} from "@fluidframework/devtools-core";
+} from "@fluidframework/devtools-core/internal";
 import { expect } from "chai";
 import Proxyquire from "proxyquire";
 import { createSandbox } from "sinon";
 
-import { type Globals } from "../Globals.js";
+import type { Globals } from "../Globals.js";
 import { type DevToolsInitMessage, extensionViewMessageSource } from "../messaging/index.js";
 
 import { awaitListener, stubGlobals, stubPort } from "./Utilities.js";
@@ -160,7 +160,10 @@ describe("Background Script unit tests", () => {
 		expect(typeof connectFromDevtools).to.equal("function");
 
 		// Wait for the Background script to register `onMessage`  listener with the Devtools port.
-		const onMessageFromDevtoolsListenerPromise = awaitListener(sandbox, devtoolsPort.onMessage);
+		const onMessageFromDevtoolsListenerPromise = awaitListener(
+			sandbox,
+			devtoolsPort.onMessage,
+		);
 
 		// Simulate background script connection init from the devtools
 		connectFromDevtools(devtoolsPort);

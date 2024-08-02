@@ -5,8 +5,8 @@
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
-import { assert } from "@fluidframework/core-utils";
-import { IMergeTreeDeltaOp, createInsertSegmentOp } from "@fluidframework/merge-tree";
+import { assert } from "@fluidframework/core-utils/internal";
+import { IMergeTreeDeltaOp, createInsertSegmentOp } from "@fluidframework/merge-tree/internal";
 import {
 	ISegment,
 	ISequenceDeltaRange,
@@ -17,7 +17,7 @@ import {
 	SharedString,
 	TextSegment,
 	reservedRangeLabelsKey,
-} from "@fluidframework/sequence";
+} from "@fluidframework/sequence/internal";
 import {
 	Fragment,
 	Schema,
@@ -248,8 +248,12 @@ export class ProseMirrorTransactionBuilder {
 
 		let currentGroup: IThingGroup | undefined;
 		const groups = new Array<IThingGroup>();
-		const annotations: { from: number; to: number; segment: ISegment; propertyDeltas?: any }[] =
-			[];
+		const annotations: {
+			from: number;
+			to: number;
+			segment: ISegment;
+			propertyDeltas?: any;
+		}[] = [];
 		let position = 0;
 
 		for (const thing of this.things) {
@@ -357,11 +361,7 @@ export class ProseMirrorTransactionBuilder {
 						this.schema.marks[prop].create(value),
 					);
 				} else {
-					this.transaction.removeMark(
-						annotation.from,
-						annotation.to,
-						this.schema.marks[prop],
-					);
+					this.transaction.removeMark(annotation.from, annotation.to, this.schema.marks[prop]);
 				}
 			}
 		}

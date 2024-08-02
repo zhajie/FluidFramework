@@ -3,18 +3,33 @@
  * Licensed under the MIT License.
  */
 
-import { FieldKey, JsonableTree } from "../../../core/index.js";
-import { DownPath } from "../../../feature-libraries/index.js";
+import type { FieldKey, JsonableTree } from "../../../core/index.js";
+import type { DownPath } from "../../../feature-libraries/index.js";
 
 export type Operation = TreeOperation | Synchronize;
 
-export type TreeOperation = TreeEdit | TransactionBoundary | UndoRedo | SchemaChange;
+export type TreeOperation =
+	| TreeEdit
+	| TransactionBoundary
+	| UndoRedo
+	| SchemaChange
+	| Constraint;
 
 export interface TreeEdit {
 	type: "treeEdit";
 	edit: FieldEdit;
 }
 
+// Currently only node constraints are supported, but more constraint types may be added in the future.
+export interface Constraint {
+	type: "constraint";
+	content: NodeConstraint;
+}
+export interface NodeConstraint {
+	type: "nodeConstraint";
+	/** Undefined when it is the parent of a detached field. */
+	path: undefined | DownPath;
+}
 export interface TransactionBoundary {
 	type: "transactionBoundary";
 	boundary: "start" | "abort" | "commit";
@@ -58,7 +73,7 @@ export interface SetField {
 
 export interface SequenceFieldEdit {
 	type: "sequence";
-	edit: Insert | Remove | IntraFieldMove;
+	edit: Insert | Remove | IntraFieldMove | CrossFieldMove;
 }
 
 export interface RequiredFieldEdit {
@@ -93,6 +108,15 @@ export interface Move {
 
 export interface IntraFieldMove extends Move {
 	type: "intraFieldMove";
+}
+
+export interface CrossFieldMove extends Move {
+	type: "crossFieldMove";
+	/**
+	 * The field to move the content to.
+	 * May be the same as the source field.
+	 */
+	dstField: FieldDownPath;
 }
 
 export interface SchemaOp {

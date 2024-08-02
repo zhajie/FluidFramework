@@ -5,7 +5,6 @@
 
 const fluidRoute = require("@fluid-example/webpack-fluid-loader");
 const path = require("path");
-const webpack = require("webpack");
 const { merge } = require("webpack-merge");
 
 module.exports = (env) =>
@@ -17,6 +16,7 @@ module.exports = (env) =>
 			resolve: {
 				extensionAlias: {
 					".js": [".ts", ".tsx", ".js"],
+					".cjs": [".cts", ".cjs"],
 					".mjs": [".mts", ".mjs"],
 				},
 			},
@@ -27,7 +27,7 @@ module.exports = (env) =>
 						loader: "ts-loader",
 					},
 					{
-						test: /\.m?js$/,
+						test: /\.[cm]?js$/,
 						use: [require.resolve("source-map-loader")],
 						enforce: "pre",
 					},
@@ -46,10 +46,10 @@ module.exports = (env) =>
 			? {
 					mode: "production",
 					devtool: "source-map",
-			  }
+				}
 			: {
 					mode: "development",
 					devtool: "inline-source-map",
-			  },
+				},
 		fluidRoute.devServerConfig(__dirname, env),
 	);

@@ -7,12 +7,16 @@ import {
 	IDocumentService,
 	IDocumentServiceFactory,
 } from "@fluidframework/driver-definitions/internal";
-import { ReplayDocumentService, ReplayDocumentServiceFactory } from "@fluidframework/replay-driver";
+import {
+	ReplayDocumentService,
+	ReplayDocumentServiceFactory,
+} from "@fluidframework/replay-driver/internal";
 
 import { DebugReplayController } from "./fluidDebuggerController.js";
 import { DebuggerUI } from "./fluidDebuggerUi.js";
 
 /**
+ * @legacy
  * @alpha
  */
 // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -35,6 +39,7 @@ export namespace FluidDebugger {
 	}
 
 	/**
+	 * @legacy
 	 * @alpha
 	 */
 	export async function createFromServiceFactory(

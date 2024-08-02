@@ -3,9 +3,9 @@
  * Licensed under the MIT License.
  */
 
-import { FieldKey } from "../schema-stored/index.js";
+import type { FieldKey } from "../schema-stored/index.js";
 
-import { NodeData } from "./types.js";
+import type { NodeData } from "./types.js";
 
 /**
  * This modules provides a simple in memory tree format.
@@ -17,22 +17,18 @@ import { NodeData } from "./types.js";
  * @internal
  */
 export interface MapTree extends NodeData {
-	fields: Map<FieldKey, MapTree[]>;
+	readonly fields: ReadonlyMap<FieldKey, readonly MapTree[]>;
 }
 
 /**
- * Get a field from `node`, optionally modifying the tree to create it if missing.
+ * {@link MapTree} which is owned by a single reference, and allowed to be mutated.
+ *
+ * @remarks
+ * To not keep multiple references to a value with this type around to avoid unexpected mutations.
+ * While this type does implement MapTree, it should not be used as a MapTree while it is being mutated.
+ *
+ * @internal
  */
-export function getMapTreeField(node: MapTree, key: FieldKey, createIfMissing: boolean): MapTree[] {
-	const field = node.fields.get(key);
-	if (field !== undefined) {
-		return field;
-	}
-	// Handle missing field:
-	if (createIfMissing === false) {
-		return [];
-	}
-	const newField: MapTree[] = [];
-	node.fields.set(key, newField);
-	return newField;
+export interface ExclusiveMapTree extends NodeData, MapTree {
+	fields: Map<FieldKey, ExclusiveMapTree[]>;
 }

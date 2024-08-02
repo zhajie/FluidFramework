@@ -3,19 +3,19 @@
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/core-utils";
+import { assert, oob } from "@fluidframework/core-utils/internal";
 
 import {
 	CursorLocationType,
 	CursorMarker,
-	DetachedField,
-	FieldKey,
-	FieldUpPath,
-	ITreeCursorSynchronous,
-	PathRootPrefix,
-	TreeType,
-	UpPath,
-	Value,
+	type DetachedField,
+	type FieldKey,
+	type FieldUpPath,
+	type ITreeCursorSynchronous,
+	type PathRootPrefix,
+	type TreeType,
+	type UpPath,
+	type Value,
 	detachedFieldAsKey,
 	rootField,
 } from "../core/index.js";
@@ -156,17 +156,21 @@ class StackCursor<TNode> extends SynchronousCursor implements CursorWithNode<TNo
 
 	private getStackedFieldKey(height: number): FieldKey {
 		assert(height % 2 === 1, 0x3b8 /* must field height */);
-		return this.siblingStack[height][this.indexStack[height]] as FieldKey;
+		const siblingStack = this.siblingStack[height] ?? oob();
+		const indexStack = this.indexStack[height] ?? oob();
+		return siblingStack[indexStack] as FieldKey;
 	}
 
 	private getStackedNodeIndex(height: number): number {
 		// assert(height % 2 === 0, "must be node height");
-		return this.indexStack[height];
+		return this.indexStack[height] ?? oob();
 	}
 
 	private getStackedNode(height: number): TNode {
 		const index = this.getStackedNodeIndex(height);
-		return (this.siblingStack[height] as readonly TNode[])[index];
+		// Test is failing when using `?? oob()` here.
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+		return (this.siblingStack[height] as readonly TNode[])[index]!;
 	}
 
 	public getFieldLength(): number {
@@ -200,7 +204,10 @@ class StackCursor<TNode> extends SynchronousCursor implements CursorWithNode<TNo
 		};
 	}
 
-	private getOffsetPath(offset: number, prefix: PathRootPrefix | undefined): UpPath | undefined {
+	private getOffsetPath(
+		offset: number,
+		prefix: PathRootPrefix | undefined,
+	): UpPath | undefined {
 		// It is more efficient to handle prefix directly in here rather than delegating to PrefixedPath.
 
 		const length = this.indexStack.length - offset;
@@ -321,7 +328,10 @@ class StackCursor<TNode> extends SynchronousCursor implements CursorWithNode<TNo
 	}
 
 	public nextNode(): boolean {
-		assert(this.mode === CursorLocationType.Nodes, 0x406 /* can only nextNode when in Nodes */);
+		assert(
+			this.mode === CursorLocationType.Nodes,
+			0x406 /* can only nextNode when in Nodes */,
+		);
 		this.index++;
 		if (this.index < (this.siblings as []).length) {
 			return true;
@@ -344,7 +354,9 @@ class StackCursor<TNode> extends SynchronousCursor implements CursorWithNode<TNo
 
 	public getNode(): TNode {
 		// assert(this.mode === CursorLocationType.Nodes, "can only get node when in node");
-		return (this.siblings as TNode[])[this.index];
+		// Test is failing when using `?? oob()` here.
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+		return (this.siblings as TNode[])[this.index]!;
 	}
 
 	private getField(): readonly TNode[] {

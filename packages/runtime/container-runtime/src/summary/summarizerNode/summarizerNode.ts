@@ -4,32 +4,32 @@
  */
 
 import { ITelemetryBaseLogger } from "@fluidframework/core-interfaces";
-import { assert, unreachableCase } from "@fluidframework/core-utils";
+import { assert, unreachableCase } from "@fluidframework/core-utils/internal";
+import { SummaryType } from "@fluidframework/driver-definitions";
 import {
-	ISequencedDocumentMessage,
 	ISnapshotTree,
-	SummaryType,
-} from "@fluidframework/protocol-definitions";
+	ISequencedDocumentMessage,
+} from "@fluidframework/driver-definitions/internal";
 import {
+	IExperimentalIncrementalSummaryContext,
+	ITelemetryContext,
 	CreateChildSummarizerNodeParam,
 	CreateSummarizerNodeSource,
-	IExperimentalIncrementalSummaryContext,
 	ISummarizeResult,
 	ISummarizerNode,
 	ISummarizerNodeConfig,
-	ITelemetryContext,
 	SummarizeInternalFn,
-} from "@fluidframework/runtime-definitions";
-import { mergeStats } from "@fluidframework/runtime-utils";
+} from "@fluidframework/runtime-definitions/internal";
+import { mergeStats } from "@fluidframework/runtime-utils/internal";
+import { type ITelemetryErrorEventExt } from "@fluidframework/telemetry-utils/internal";
 import {
-	type ITelemetryErrorEventExt,
 	ITelemetryLoggerExt,
 	LoggingError,
 	PerformanceEvent,
 	TelemetryDataTag,
 	createChildLogger,
 	tagCodeArtifacts,
-} from "@fluidframework/telemetry-utils";
+} from "@fluidframework/telemetry-utils/internal";
 
 import {
 	EscapedPath,
@@ -165,14 +165,10 @@ export class SummarizerNode implements IRootSummarizerNode {
 		trackState: boolean = true,
 		telemetryContext?: ITelemetryContext,
 	): Promise<ISummarizeResult> {
-		assert(
-			this.isSummaryInProgress(),
-			0x1a1 /* "summarize should not be called when not tracking the summary" */,
-		);
-		assert(
-			this.wipSummaryLogger !== undefined,
-			0x1a2 /* "wipSummaryLogger should have been set in startSummary or ctor" */,
-		);
+		// If trackState is false, call summarize internal directly and don't track any state.
+		if (!trackState) {
+			return this.summarizeInternalFn(fullTree, trackState, telemetryContext);
+		}
 
 		// Try to reuse the tree if unchanged
 		if (this.canReuseHandle && !fullTree && !this.hasChanged()) {
@@ -196,25 +192,26 @@ export class SummarizerNode implements IRootSummarizerNode {
 			}
 		}
 
-		// This assert is the same the other 0a1x1 assert `isSummaryInProgress`, the only difference is that typescript
-		// complains if this assert isn't done this way
-		assert(
-			this.wipReferenceSequenceNumber !== undefined,
-			0x5df /* Summarize should not be called when not tracking the summary */,
-		);
-		const incrementalSummaryContext: IExperimentalIncrementalSummaryContext | undefined =
-			this._latestSummary !== undefined
-				? {
-						summarySequenceNumber: this.wipReferenceSequenceNumber,
-						latestSummarySequenceNumber: this._latestSummary.referenceSequenceNumber,
-						// TODO: remove summaryPath
-						summaryPath: this._latestSummary.fullPath.path,
-				  }
-				: undefined;
+		let incrementalSummaryContext: IExperimentalIncrementalSummaryContext | undefined;
+		if (!fullTree) {
+			assert(
+				this.wipReferenceSequenceNumber !== undefined,
+				0x5df /* Summarize should not be called when not tracking the summary */,
+			);
+			incrementalSummaryContext =
+				this._latestSummary !== undefined
+					? {
+							summarySequenceNumber: this.wipReferenceSequenceNumber,
+							latestSummarySequenceNumber: this._latestSummary.referenceSequenceNumber,
+							// TODO: remove summaryPath
+							summaryPath: this._latestSummary.fullPath.path,
+						}
+					: undefined;
+		}
 
 		const result = await this.summarizeInternalFn(
 			fullTree,
-			true,
+			trackState,
 			telemetryContext,
 			incrementalSummaryContext,
 		);
@@ -309,12 +306,11 @@ export class SummarizerNode implements IRootSummarizerNode {
 	 * queue. We track this until we get an ack from the server for this summary.
 	 * @param proposalHandle - The handle of the summary that was uploaded to the server.
 	 */
-	public completeSummary(proposalHandle: string, validate: boolean) {
+	public completeSummary(proposalHandle: string) {
 		this.completeSummaryCore(
 			proposalHandle,
 			undefined /* parentPath */,
 			false /* parentSkipRecursion */,
-			validate,
 		);
 	}
 
@@ -330,16 +326,11 @@ export class SummarizerNode implements IRootSummarizerNode {
 		proposalHandle: string,
 		parentPath: EscapedPath | undefined,
 		parentSkipRecursion: boolean,
-		validate: boolean,
 	) {
-		if (validate && this.wasSummarizeMissed(parentSkipRecursion)) {
-			this.throwUnexpectedError({
-				eventName: "NodeDidNotSummarize",
-				proposalHandle,
-			});
-		}
-
-		assert(this.wipReferenceSequenceNumber !== undefined, 0x1a4 /* "Not tracking a summary" */);
+		assert(
+			this.wipReferenceSequenceNumber !== undefined,
+			0x1a4 /* "Not tracking a summary" */,
+		);
 		let localPathsToUse = this.wipLocalPaths;
 
 		if (parentSkipRecursion) {
@@ -381,7 +372,6 @@ export class SummarizerNode implements IRootSummarizerNode {
 				proposalHandle,
 				fullPathForChildren,
 				this.wipSkipRecursion || parentSkipRecursion,
-				validate,
 			);
 		}
 		// Note that this overwrites existing pending summary with

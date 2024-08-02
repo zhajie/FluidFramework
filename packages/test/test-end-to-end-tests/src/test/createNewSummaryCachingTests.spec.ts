@@ -11,13 +11,13 @@ import {
 	DefaultSummaryConfiguration,
 	IContainerRuntimeOptions,
 	ISummaryConfiguration,
-} from "@fluidframework/container-runtime";
+} from "@fluidframework/container-runtime/internal";
 import { IDocumentServiceFactory } from "@fluidframework/driver-definitions/internal";
-import { MockLogger } from "@fluidframework/telemetry-utils";
+import { MockLogger } from "@fluidframework/telemetry-utils/internal";
 import {
 	ITestObjectProvider,
 	createContainerRuntimeFactoryWithDefaultDataStore,
-} from "@fluidframework/test-utils";
+} from "@fluidframework/test-utils/internal";
 
 import { wrapObjectAndOverride } from "../mocking.js";
 
@@ -51,9 +51,6 @@ describeCompat("Cache CreateNewSummary", "NoCompat", (getTestObjectProvider, api
 	const runtimeOptions: IContainerRuntimeOptions = {
 		summaryOptions: {
 			summaryConfigOverrides,
-		},
-		gcOptions: {
-			gcAllowed: true,
 		},
 	};
 	const runtimeFactory = createContainerRuntimeFactoryWithDefaultDataStore(
@@ -109,7 +106,10 @@ describeCompat("Cache CreateNewSummary", "NoCompat", (getTestObjectProvider, api
 		// getting the non-default data store and validate it is loaded
 		const handle2 = defaultDataStore._root.get("dataStore2");
 		const testDataStore: TestDataObject = await handle2.get();
-		assert(testDataStore !== undefined, "2nd data store within loaded container is not loaded");
+		assert(
+			testDataStore !== undefined,
+			"2nd data store within loaded container is not loaded",
+		);
 
 		// validate the snapshot was fetched from cache
 		const fetchEvent = mockLogger.events.find(
@@ -164,7 +164,10 @@ describeCompat("Cache CreateNewSummary", "NoCompat", (getTestObjectProvider, api
 		// getting the non-default data store and validate it is loaded
 		const handle2 = defaultDataStore._root.get("dataStore2");
 		const testDataStore: TestDataObject = await handle2.get();
-		assert(testDataStore !== undefined, "2nd data store within loaded container is not loaded");
+		assert(
+			testDataStore !== undefined,
+			"2nd data store within loaded container is not loaded",
+		);
 
 		// validate the snapshot was fetched from cache
 		const fetchEvent = mockLogger.events.find(

@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Tree as FluentTree } from "@fluentui/react-components/unstable";
+import { Tree as FluentTree } from "@fluentui/react-components";
 import {
 	GetRootDataVisualizations,
 	type HasContainerKey,
@@ -12,7 +12,7 @@ import {
 	RootDataVisualizations,
 	type RootHandleNode,
 	handleIncomingMessage,
-} from "@fluidframework/devtools-core";
+} from "@fluidframework/devtools-core/internal";
 import React from "react";
 
 import { useMessageRelay } from "../MessageRelayContext.js";
@@ -86,12 +86,7 @@ export function DataObjectsView(props: DataObjectsViewProps): React.ReactElement
 		<FluentTree aria-label="Data tree view">
 			{Object.entries(rootDataHandles).map(([key, fluidObject], index) => {
 				return (
-					<TreeDataView
-						key={key}
-						containerKey={containerKey}
-						label={key}
-						node={fluidObject}
-					/>
+					<TreeDataView key={key} containerKey={containerKey} label={key} node={fluidObject} />
 				);
 			})}
 		</FluentTree>

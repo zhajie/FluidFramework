@@ -5,15 +5,20 @@
 
 import { strict as assert } from "assert";
 
-import { CursorLocationType, EmptyKey, Value, mapCursorField } from "../../../core/index.js";
+import {
+	CursorLocationType,
+	EmptyKey,
+	type Value,
+	mapCursorField,
+} from "../../../core/index.js";
 import { SchemaBuilder, jsonObject, leaf } from "../../../domains/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { BasicChunk } from "../../../feature-libraries/chunked-forest/basicChunk.js";
 // eslint-disable-next-line import/no-internal-modules
 import { tryGetChunk } from "../../../feature-libraries/chunked-forest/chunk.js";
 import {
-	ChunkPolicy,
-	ShapeInfo,
+	type ChunkPolicy,
+	type ShapeInfo,
 	basicOnlyChunkPolicy,
 	chunkRange,
 	defaultChunkPolicy,
@@ -29,7 +34,7 @@ import { SequenceChunk } from "../../../feature-libraries/chunked-forest/sequenc
 // eslint-disable-next-line import/no-internal-modules
 import { TreeShape } from "../../../feature-libraries/chunked-forest/uniformChunk.js";
 import {
-	TreeChunk,
+	type TreeChunk,
 	cursorForJsonableTreeField,
 	cursorForJsonableTreeNode,
 	defaultSchemaPolicy,
@@ -316,7 +321,7 @@ describe("chunkTree", () => {
 			const info = tryShapeFromFieldSchema(
 				schema,
 				defaultSchemaPolicy,
-				valueField,
+				valueField.stored,
 				brand("key"),
 				new Map(),
 			);
@@ -326,7 +331,7 @@ describe("chunkTree", () => {
 			const info = tryShapeFromFieldSchema(
 				schema,
 				defaultSchemaPolicy,
-				optionalField,
+				optionalField.stored,
 				brand("key"),
 				new Map(),
 			);
